@@ -159,16 +159,23 @@
     const btnText = document.getElementById('musicToggleText');
     const bgMusic = document.getElementById('bgMusic');
     
+    // Unlock audio context if needed
+    if (!window.audioUnlocked) {
+      unlockAudio();
+    }
+    
     window.bgMusicEnabled = !window.bgMusicEnabled;
     
     if (window.bgMusicEnabled) {
       if (btnText) btnText.textContent = "Mini-Rockola: On";
       if (bgMusic) {
+        if (!bgMusic.src || bgMusic.src === "") {
+            bgMusic.src = window.lofiPlaylist[window.currentTrackIndex];
+        }
         bgMusic.volume = 0.08;
-        // Intentar reproducir inmediatamente al activar
         bgMusic.play().catch(e => {
-            console.log('Audio play blocked/error:', e);
-            // Si falla, lo activamos para el próximo evento de voz
+            console.log('Audio playback delayed or blocked:', e);
+            showAudioPrompt();
         });
       }
     } else {
@@ -176,6 +183,51 @@
       if (bgMusic) bgMusic.pause();
     }
   };
+
+  function showAudioPrompt() {
+    let prompt = document.getElementById('audioPrompt');
+    if (!prompt) {
+      prompt = document.createElement('div');
+      prompt.id = 'audioPrompt';
+      prompt.textContent = 'Click para Activar Audio 🎵';
+      prompt.onclick = () => {
+        unlockAudio();
+        prompt.style.display = 'none';
+      };
+      document.body.appendChild(prompt);
+    }
+    prompt.style.display = 'block';
+  }
+
+  function unlockAudio() {
+    const bgMusic = document.getElementById('bgMusic');
+    if (bgMusic) {
+      if (!bgMusic.src || bgMusic.src === "") {
+        bgMusic.src = window.lofiPlaylist[window.currentTrackIndex];
+      }
+      bgMusic.play().then(() => {
+        if (!window.bgMusicEnabled) bgMusic.pause();
+        window.audioUnlocked = true;
+      }).catch(e => console.log("Unlock failed:", e));
+    }
+    
+    // Unlock Speech Synthesis
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance('');
+      window.speechSynthesis.speak(utterance);
+    }
+    window.audioUnlocked = true;
+    const prompt = document.getElementById('audioPrompt');
+    if (prompt) prompt.style.display = 'none';
+  }
+
+  // Global click to unlock audio
+  document.addEventListener('click', function unlockOnFirstClick() {
+    if (!window.audioUnlocked) {
+      unlockAudio();
+      document.removeEventListener('click', unlockOnFirstClick);
+    }
+  }, { once: true });
 
   window.nextTrack = function() {
     const bgMusic = document.getElementById('bgMusic');
@@ -273,15 +325,17 @@
 
     const bgMusic = document.getElementById('bgMusic');
     if (bgMusic && window.bgMusicEnabled) {
-        bgMusic.volume = 0.08;
-        bgMusic.play().catch(e => console.log('Audio play error:', e));
+        bgMusic.volume = 0.05; // Dim music while speaking
+        bgMusic.play().catch(e => console.log('Music resume skipped:', e));
     }
 
     window.speechSynthesis.speak(utterance);
     window.isSpeaking = true;
     
-    document.getElementById('ttsText').textContent = 'Detener Audio';
-    document.getElementById('ttsIcon').textContent = '⏹️';
+    const ttsText = document.getElementById('ttsText');
+    const ttsIcon = document.getElementById('ttsIcon');
+    if (ttsText) ttsText.textContent = 'Detener Audio';
+    if (ttsIcon) ttsIcon.textContent = '⏹️';
   };
 
   window.isPodcastMode = false;
@@ -538,9 +592,9 @@
   // Filter pills
   document.querySelectorAll('.filter-pill').forEach(btn => {
     btn.addEventListener('click', () => {
-      if (btn.id === 'podcastBtn') return;
+      // Al haber separado las clases a .control-pill, aquí solo entran los filtros reales
       
-      // Stop podcast if running
+      // Stop podcast if running when changing filters
       if (window.isPodcastMode && 'speechSynthesis' in window) {
         window.isPodcastMode = false;
         window.speechSynthesis.cancel();
@@ -553,7 +607,7 @@
         if (pText) pText.textContent = "Modo Podcast";
       }
 
-      document.querySelectorAll('.filter-pill:not(#podcastBtn)').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       applyFilter(btn.dataset.filter);
     });

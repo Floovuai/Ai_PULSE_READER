@@ -57,26 +57,36 @@
     }
 
     .logo-text {
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      font-weight: 800;
-      font-size: 18px; /* Slightly smaller for mobile */
-      letter-spacing: -0.3px;
-      color: var(--text);
-      line-height: 1.2;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.1;
     }
 
     .logo-text .title {
-      font-size: 18px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
+      font-size: 19px;
+      letter-spacing: -0.5px;
+      color: var(--text);
     }
 
     .logo-text .subtitle {
       color: var(--muted);
-      display: block;
       font-size: 10px;
       font-weight: 700;
-      letter-spacing: 1.5px;
-      margin-top: 3px;
+      letter-spacing: 1px;
       text-transform: uppercase;
+      opacity: 0.8;
+    }
+
+    @media (max-width: 400px) {
+      .logo-text .subtitle {
+        display: none; /* Hide on very small screens to avoid crowding */
+      }
+      .logo img {
+        width: 38px;
+        height: 38px;
+      }
     }
 
     .refresh-btn {
@@ -117,7 +127,7 @@
     }
     .filters::-webkit-scrollbar { display: none; }
 
-    .filter-pill {
+    .filter-pill, .control-pill {
       flex-shrink: 0;
       padding: 6px 14px;
       border-radius: 99px;
@@ -137,7 +147,42 @@
       border-color: var(--accent);
       color: #ffffff;
       font-weight: 600;
-      box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+    }
+
+    .control-pill {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-weight: 500;
+    }
+
+    .control-pill:active {
+      background: rgba(255, 255, 255, 0.15);
+      transform: scale(0.95);
+    }
+
+    /* Audio interaction prompt */
+    #audioPrompt {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--accent);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 99px;
+      font-weight: 700;
+      z-index: 1000;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      animation: slideUp 0.5s ease-out, pulse 2s infinite;
+      display: none; /* Shown via JS */
+      cursor: pointer;
+    }
+
+    @keyframes slideUp {
+      from { transform: translate(-50%, 100px); }
+      to { transform: translate(-50%, 0); }
     }
 
     .filter-pill:not(.active):active {
