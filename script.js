@@ -247,6 +247,7 @@
         const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
         if (cached.ts && Date.now() - cached.ts < CACHE_TTL && cached.data?.length) {
           allNews = cached.data;
+          allNews.sort((a, b) => new Date(a.published_at) - new Date(b.published_at));
           applyFilter(activeFilter);
           document.getElementById('lastUpdate').textContent = 'caché';
           btn.classList.remove('spinning');
@@ -270,6 +271,7 @@
         try { payload = JSON.parse(payload); } catch(e) {}
       }
       allNews = payload.data || payload || [];
+      allNews.sort((a, b) => new Date(a.published_at) - new Date(b.published_at));
 
       // Save cache
       localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: allNews }));
