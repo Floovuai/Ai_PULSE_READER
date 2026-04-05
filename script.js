@@ -24,15 +24,7 @@
     return { host1: h1, host2: h2 };
   }
 
-  // Atenuación inteligente de música
-  function attenuateMusic(isDucking) {
-    const bgMusic = document.getElementById('bgMusic');
-    if (!bgMusic) return;
-    
-    // Si estamos en modo podcast o lectura, bajamos a un nivel ambiente
-    const targetVolume = isDucking ? 0.015 : 0.08;
-    bgMusic.volume = targetVolume;
-  }
+
 
   let allNews = [];
   let activeFilter = 'all';
@@ -230,101 +222,14 @@
     }
   }
 
-  window.bgMusicEnabled = true;
-  window.currentTrackIndex = 0;
-  window.lofiPlaylist = [
-    'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=lofi-study-112191.mp3',
-    'https://cdn.pixabay.com/download/audio/2022/03/15/audio_73149be116.mp3?filename=empty-mind-11897.mp3',
-    'https://cdn.pixabay.com/download/audio/2024/02/07/audio_7f53a47833.mp3?filename=lofi-chill-medium-187515.mp3'
-  ];
-  
-  window.toggleMusic = function() {
-    const btnText = document.getElementById('musicToggleText');
-    const bgMusic = document.getElementById('bgMusic');
-    
-    // Unlock audio context if needed
-    if (!window.audioUnlocked) {
-      unlockAudio();
-    }
-    
-    window.bgMusicEnabled = !window.bgMusicEnabled;
-    
-    if (window.bgMusicEnabled) {
-      if (btnText) btnText.textContent = "Mini-Rockola: On";
-      if (bgMusic) {
-        if (!bgMusic.src || bgMusic.src === "") {
-            bgMusic.src = window.lofiPlaylist[window.currentTrackIndex];
-        }
-        bgMusic.volume = 0.08;
-        bgMusic.play().catch(e => {
-            console.log('Audio playback delayed or blocked:', e);
-            showAudioPrompt();
-        });
-      }
-    } else {
-      if (btnText) btnText.textContent = "Mini-Rockola: Off";
-      if (bgMusic) bgMusic.pause();
-    }
-  };
-
-  function showAudioPrompt() {
-    let prompt = document.getElementById('audioPrompt');
-    if (!prompt) {
-      prompt = document.createElement('div');
-      prompt.id = 'audioPrompt';
-      prompt.textContent = 'Click para Activar Audio 🎵';
-      prompt.onclick = () => {
-        unlockAudio();
-        prompt.style.display = 'none';
-      };
-      document.body.appendChild(prompt);
-    }
-    prompt.style.display = 'block';
-  }
-
-  function unlockAudio() {
-    const bgMusic = document.getElementById('bgMusic');
-    if (bgMusic) {
-      if (!bgMusic.src || bgMusic.src === "") {
-        bgMusic.src = window.lofiPlaylist[window.currentTrackIndex];
-      }
-      bgMusic.play().then(() => {
-        if (!window.bgMusicEnabled) bgMusic.pause();
-        window.audioUnlocked = true;
-      }).catch(e => console.log("Unlock failed:", e));
-    }
-    
-    // Unlock Speech Synthesis
+  // Unlock Speech Synthesis on first click
+  document.addEventListener('click', function unlockOnFirstClick() {
     if ('speechSynthesis' in window) {
       const utterance = new SpeechSynthesisUtterance('');
       window.speechSynthesis.speak(utterance);
     }
-    window.audioUnlocked = true;
-    const prompt = document.getElementById('audioPrompt');
-    if (prompt) prompt.style.display = 'none';
-  }
-
-  // Global click to unlock audio
-  document.addEventListener('click', function unlockOnFirstClick() {
-    if (!window.audioUnlocked) {
-      unlockAudio();
-      document.removeEventListener('click', unlockOnFirstClick);
-    }
+    document.removeEventListener('click', unlockOnFirstClick);
   }, { once: true });
-
-  window.nextTrack = function() {
-    const bgMusic = document.getElementById('bgMusic');
-    if (!bgMusic) return;
-
-    window.currentTrackIndex = (window.currentTrackIndex + 1) % window.lofiPlaylist.length;
-    bgMusic.src = window.lofiPlaylist[window.currentTrackIndex];
-    bgMusic.load();
-    
-    if (window.bgMusicEnabled) {
-      bgMusic.volume = 0.08;
-      bgMusic.play().catch(e => console.log('Next track error:', e));
-    }
-  };
 
   window.rateOffset = 0;
   window.rateLevel = 0; // 0: Normal, 1: Rápida, 2: Muy Rápida
@@ -388,13 +293,12 @@
     const { host1 } = getNeuralVoices();
     if (host1) utterance.voice = host1;
     
-    utterance.onstart = () => attenuateMusic(true);
+
     utterance.onend = function() {
       window.isSpeaking = false;
-      attenuateMusic(false);
       resetTTSButton();
     };
-    utterance.onerror = () => attenuateMusic(false);
+
 
     window.speechSynthesis.speak(utterance);
     window.isSpeaking = true;
@@ -464,7 +368,7 @@
     
     function speakSequentially() {
       if (utterances.length === 0) {
-        attenuateMusic(false);
+
         markAsRead(item.url);
         applyFilter(activeFilter);
         
@@ -476,13 +380,13 @@
       }
       
       const u = utterances.shift();
-      u.onstart = () => attenuateMusic(true);
+
       u.onend = () => {
         if (window.isPodcastMode) speakSequentially();
       };
       u.onerror = (e) => {
         console.error("Audio playback error:", e);
-        attenuateMusic(false);
+
         if (window.isPodcastMode) speakSequentially();
       };
       window.speechSynthesis.speak(u);

@@ -163,28 +163,6 @@
       transform: scale(0.96);
     }
 
-    /* Audio interaction prompt */
-    #audioPrompt {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--accent);
-      color: white;
-      padding: 12px 24px;
-      border-radius: 99px;
-      font-weight: 700;
-      z-index: 1000;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-      animation: slideUp 0.5s ease-out, pulse 2s infinite;
-      display: none; /* Shown via JS */
-      cursor: pointer;
-    }
-
-    @keyframes slideUp {
-      from { transform: translate(-50%, 100px); }
-      to { transform: translate(-50%, 0); }
-    }
 
     .filter-pill:not(.active):active {
       background: var(--surface2);
