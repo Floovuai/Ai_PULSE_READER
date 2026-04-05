@@ -171,45 +171,11 @@
   // Store current list for the modal
   window.currentNewsList = [];
 
-  // Create Modal once
-  if (!document.getElementById('newsModal')) {
-    const modalHtml = `
-      <div id="newsModal" class="modal-overlay" onclick="closeModal(event)">
-        <div class="modal-content" onclick="event.stopPropagation()">
-          <div class="modal-grabber"></div>
-          <button class="modal-close" onclick="closeModal(event)">✕</button>
-          <img id="modalImage" class="modal-image" src="" alt="">
-          <div class="modal-body">
-            <div class="card-meta" style="margin-bottom: 12px;">
-              <span id="modalSource" class="source-badge"></span>
-              <span id="modalTime" class="card-time"></span>
-            </div>
-            <h2 id="modalTitle" class="modal-title"></h2>
-            <div id="modalSummary" class="modal-summary-text"></div>
-            <div class="modal-actions-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 24px;">
-              <button id="btnTTS" class="modal-btn" onclick="toggleTTS()" style="grid-column: span 2; background: var(--accent); color: white;">
-                <span id="ttsIcon">🔊</span> <span id="ttsText">Escuchar Resumen</span>
-              </button>
-              <button id="btnRate" class="modal-btn" onclick="toggleRate()" style="background: var(--surface2); color: var(--text); border: 1px solid rgba(255,255,255,0.1); box-shadow: none;">
-                ⏱️ <span id="rateBtnText">Velocidad: Normal</span>
-              </button>
-              <a id="modalLink" class="modal-btn" href="#" target="_blank" rel="noopener noreferrer" style="background: var(--surface2); color: var(--text); border: 1px solid rgba(255,255,255,0.1); box-shadow: none;">
-                Leer artículo
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line>
-                </svg>
-              </a>
-              <button id="btnMarkRead" class="modal-btn" onclick="toggleReadFromModal()" style="grid-column: span 2; background: var(--surface2); color: var(--text); border: 1px solid rgba(255,255,255,0.1); box-shadow: none;">
-                <span id="markReadIcon">✓</span> <span id="markReadText">Marcar como leída</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
+  // Initialize gestures for the static modal
+  if (document.getElementById('newsModal')) {
     initSheetGestures();
   }
+
 
   function initSheetGestures() {
     const modal = document.querySelector('.modal-content');
@@ -253,7 +219,22 @@
     });
   }
 
+  window.closeModal = function() {
+    const modal = document.getElementById('newsModal');
+    if (!modal) return;
+    modal.classList.remove('visible');
+    document.body.style.overflow = '';
+    // Stop TTS
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    window.isSpeaking = false;
+    resetTTSButton();
+    // Reset drag transform
+    const content = modal.querySelector('.modal-content');
+    if (content) content.style.transform = '';
+  }
+
   window.currentModalIndex = -1;
+
 
   window.openModal = function(index) {
     // Reset TTS state before opening
@@ -582,28 +563,23 @@
 
   function renderCards(news) {
     const list = document.getElementById('newsList');
+    window.currentNewsList = news; // Save for modal
 
-    // Filter out read articles
-    const unread = news.filter(item => !isRead(item.url));
-    window.currentNewsList = unread; // Save for modal
-
-    if (!unread.length) {
+    if (!news.length) {
       list.innerHTML = `
         <div class="empty-state">
           <div class="pulse-dot"></div>
-          <div class="error-title">${news.length ? 'Todo leído ✓' : 'Sin noticias aún'}</div>
-          <div class="error-msg">${news.length
-            ? 'Has marcado todas las noticias como leídas.<br>Nuevas noticias llegarán cada 30 min.'
-            : 'El workflow de n8n todavía no ha<br>recopilado artículos. Vuelve pronto.'
-          }</div>
+          <div class="error-title">Sin noticias aún</div>
+          <div class="error-msg">El workflow de n8n todavía no ha<br>recopilado artículos. Vuelve pronto.</div>
         </div>`;
       return;
     }
 
-    list.innerHTML = unread.map((item, i) => {
+    list.innerHTML = news.map((item, i) => {
       const isFeatured = i === 0 && activeFilter === 'all';
       const sourceName = getSourceName(item);
       const time = timeAgo(item.published_at);
+      const read = isRead(item.url);
       
       const seed = encodeURIComponent((item.title || 'IA').substring(0, 40));
       const fallbackImg = `https://api.dicebear.com/9.x/shapes/svg?seed=${seed}&backgroundColor=18181f`;
@@ -612,7 +588,8 @@
       const imageUrl = validSrc || picsumImg;
 
       return `
-        <div class="card${isFeatured ? ' featured' : ''}" style="animation-delay: ${i * 40}ms" data-url="${item.url}" onclick="openModal(${i})">
+        <div class="card${isFeatured ? ' featured' : ''}${read ? ' read' : ''}" style="animation-delay: ${i * 40}ms" data-url="${item.url}" onclick="openModal(${i})">
+
           <button class="btn-read" onclick="handleRead(event, '${encodeURIComponent(item.url)}')" title="Marcar como leída">✓</button>
           <img class="card-image" src="${imageUrl}" alt="" loading="lazy" onerror="this.src='${fallbackImg}'; this.onerror=null;">
           <div class="card-body">
@@ -828,3 +805,35 @@
 
   // Auto-refresh every 15 minutes automatically if left open
   setInterval(() => loadNews(), 15 * 60 * 1000);
+
+  // ─── Utility Functions for Header Actions ─────────────────
+
+  window.toggleFontSize = function(size) {
+    // Remove all font classes
+    document.body.classList.remove('font-small', 'font-medium', 'font-large');
+    // Add selected class
+    document.body.classList.add(`font-${size}`);
+    // Update button states
+    document.querySelectorAll('.font-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.size === size);
+    });
+    // Persist
+    localStorage.setItem('ainews_font_size', size);
+  };
+
+  window.openInBrowser = function() {
+    const currentUrl = window.location.href;
+    // In many APK/Webview environments, this helps breakout
+    window.open(currentUrl, '_system');
+    // Fallback if _system isn't supported
+    setTimeout(() => {
+        window.location.href = currentUrl;
+    }, 100);
+  };
+
+  // Restore Font Size on Init
+  (function initFontSize() {
+    const savedSize = localStorage.getItem('ainews_font_size') || 'medium';
+    toggleFontSize(savedSize);
+  })();
+
