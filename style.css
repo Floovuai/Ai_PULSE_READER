@@ -1,15 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
     :root {
-      --bg: #030712;
-      --surface: #0f172a;
-      --surface2: #1e293b;
-      --border: rgba(255,255,255,0.08);
-      --accent: #3b82f6;
-      --accent2: #8b5cf6;
-      --text: #f8fafc;
-      --muted: #94a3b8;
-      --radius: 16px;
+      --bg: #000000; /* Negro puro para OLED */
+      --surface: #1C1C1E; /* Secondary System Background */
+      --surface2: #2C2C2E; /* Tertiary System Background */
+      --border: rgba(255, 255, 255, 0.1);
+      --accent: #0A84FF; /* iOS System Blue */
+      --accent2: #BF5AF2; /* System Purple */
+      --text: #ffffff;
+      --muted: #8E8E93; /* System Gray */
+      --radius: 22px; 
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -18,10 +18,14 @@
       background: var(--bg);
       color: var(--text);
       font-family: 'Plus Jakarta Sans', sans-serif;
-      font-weight: 300;
+      font-weight: 400;
       min-height: 100dvh;
-      overscroll-behavior: none;
+      overscroll-behavior-y: contain;
       -webkit-tap-highlight-color: transparent;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      -webkit-user-select: none;
+      user-select: none;
     }
 
     /* Header */
@@ -29,18 +33,18 @@
       position: sticky;
       top: 0;
       z-index: 100;
-      background: rgba(3,7,18,0.85);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-bottom: 1px solid var(--border);
-      padding: env(safe-area-inset-top, 0px) 20px 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      border-bottom: 0.5px solid var(--border);
+      padding: env(safe-area-inset-top, 0px) 16px 0;
     }
 
     .top-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 18px 0;
+      padding: 12px 0 16px;
     }
 
     .logo {
@@ -64,9 +68,9 @@
 
     .logo-text .title {
       font-family: 'Plus Jakarta Sans', sans-serif;
-      font-weight: 800;
-      font-size: 19px;
-      letter-spacing: -0.5px;
+      font-weight: 700;
+      font-size: 20px;
+      letter-spacing: -0.6px;
       color: var(--text);
     }
 
@@ -90,31 +94,32 @@
     }
 
     .refresh-btn {
-      width: 36px;
-      height: 36px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      color: var(--muted);
+      border: 0.5px solid var(--border);
+      background: var(--surface2);
+      color: var(--accent);
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       -webkit-tap-highlight-color: transparent;
     }
 
     .refresh-btn:active {
-      background: var(--surface2);
-      color: var(--accent);
-      transform: scale(0.92);
+      background: #3A3A3C;
+      transform: scale(0.9);
     }
 
     .refresh-btn.spinning svg {
-      animation: spin 0.8s linear infinite;
+      animation: ios-spinner 0.8s linear infinite;
     }
 
-    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes ios-spinner {
+      to { transform: rotate(360deg); }
+    }
 
     /* Filter tabs */
     .filters {
@@ -129,37 +134,33 @@
 
     .filter-pill, .control-pill {
       flex-shrink: 0;
-      padding: 6px 14px;
+      padding: 8px 16px;
       border-radius: 99px;
-      border: 1px solid var(--border);
-      background: transparent;
+      border: 0.5px solid var(--border);
+      background: rgba(255, 255, 255, 0.05);
       color: var(--muted);
       font-family: 'Plus Jakarta Sans', sans-serif;
       font-size: 13px;
-      font-weight: 400;
+      font-weight: 600;
       cursor: pointer;
-      transition: all 0.15s;
+      transition: all 0.2s ease;
       white-space: nowrap;
     }
 
     .filter-pill.active {
-      background: var(--accent);
-      border-color: var(--accent);
+      background: #3A3A3C; /* Apple Active Background */
+      border-color: transparent;
       color: #ffffff;
-      font-weight: 600;
-      box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
     }
 
     .control-pill {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      color: #fff;
-      font-weight: 500;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--accent);
     }
 
-    .control-pill:active {
-      background: rgba(255, 255, 255, 0.15);
-      transform: scale(0.95);
+    .control-pill:active, .filter-pill:not(.active):active {
+      background: #3A3A3C;
+      transform: scale(0.96);
     }
 
     /* Audio interaction prompt */
@@ -203,17 +204,21 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 20px;
-      padding: 0 2px;
+      margin-bottom: 24px;
+      padding: 12px 16px;
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: 14px;
     }
 
     .status-count {
       font-family: 'Plus Jakarta Sans', sans-serif;
-      font-size: 13px;
-      color: var(--muted);
-      font-weight: 600;
-      letter-spacing: 0.5px;
+      font-size: 11px;
+      color: var(--text);
+      font-weight: 700;
+      letter-spacing: 1px;
       text-transform: uppercase;
+      opacity: 0.9;
     }
 
     .last-update {
@@ -233,17 +238,17 @@
       border-radius: var(--radius);
       overflow: hidden;
       cursor: pointer;
-      transition: transform 0.15s, background 0.15s;
+      transition: background-color 0.2s ease;
       text-decoration: none;
       display: block;
-      margin-bottom: 10px;
-      border: 1px solid var(--border);
+      margin-bottom: 12px;
+      border: 0.5px solid var(--border);
       animation: fadeIn 0.3s ease both;
+      box-shadow: none; /* iOS style: clean and flat */
     }
 
     .card:active {
-      transform: scale(0.98);
-      background: var(--surface2);
+      background-color: #3A3A3C; /* Feedback visual al tocar iOS */
     }
 
     @keyframes fadeIn {
@@ -303,21 +308,21 @@
 
     .card-title {
       font-family: 'Plus Jakarta Sans', sans-serif;
-      font-size: 18px;
-      font-weight: 800;
-      line-height: 1.35;
+      font-size: 19px;
+      font-weight: 700;
+      line-height: 1.25;
       color: var(--text);
-      margin-bottom: 8px;
-      letter-spacing: -0.2px;
+      margin-bottom: 6px;
+      letter-spacing: -0.5px;
     }
 
     .card-summary {
       font-size: 15px;
-      line-height: 1.6;
-      color: #ffffff;
+      line-height: 1.5;
+      color: #D1D1D6; /* Secondary System Label */
       display: -webkit-box;
-      -webkit-line-clamp: 3;
-      line-clamp: 3;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
@@ -487,18 +492,19 @@
   background: var(--surface);
   width: 100%;
   max-width: 600px;
-  max-height: 90dvh;
+  max-height: 92dvh;
   overflow-y: auto;
-  border-radius: 24px 24px 0 0;
+  border-radius: 22px 22px 0 0;
   position: relative;
   transform: translateY(100%);
   transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
+  border: 0.5px solid var(--border);
 }
 @media (min-width: 600px) {
   .modal-content {
-    border-radius: 20px;
+    border-radius: 22px;
     height: auto;
     max-height: 85vh;
     margin-bottom: 5vh;
