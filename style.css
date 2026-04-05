@@ -1,15 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
     :root {
-      --bg: #0a0a0f;
-      --surface: #111118;
-      --surface2: #18181f;
-      --border: rgba(255,255,255,0.07);
-      --accent: #6effc8;
-      --accent2: #ff6b6b;
-      --text: #e8e8f0;
-      --muted: #6b6b7e;
-      --radius: 12px;
+      --bg: #030712;
+      --surface: #0f172a;
+      --surface2: #1e293b;
+      --border: rgba(255,255,255,0.08);
+      --accent: #3b82f6;
+      --accent2: #8b5cf6;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --radius: 16px;
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -29,7 +29,7 @@
       position: sticky;
       top: 0;
       z-index: 100;
-      background: rgba(10,10,15,0.9);
+      background: rgba(3,7,18,0.85);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       border-bottom: 1px solid var(--border);
@@ -131,8 +131,9 @@
     .filter-pill.active {
       background: var(--accent);
       border-color: var(--accent);
-      color: #0a0a0f;
+      color: #ffffff;
       font-weight: 600;
+      box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
     }
 
     .filter-pill:not(.active):active {
@@ -239,10 +240,10 @@
       font-weight: 700;
       letter-spacing: 0.8px;
       text-transform: uppercase;
-      color: var(--accent);
-      background: rgba(110,255,200,0.1);
+      color: var(--accent2);
+      background: rgba(139, 92, 246, 0.15);
       padding: 3px 8px;
-      border-radius: 4px;
+      border-radius: 6px;
     }
 
     .card-time {
@@ -359,8 +360,8 @@
     }
 
     @keyframes pulse {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(110,255,200,0.4); }
-      50% { box-shadow: 0 0 0 12px rgba(110,255,200,0); }
+      0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0.5); }
+      50% { box-shadow: 0 0 0 16px rgba(59,130,246,0); }
     }
 
     /* Mark as read button */
@@ -375,7 +376,7 @@
       height: 32px;
       border-radius: 50%;
       border: 1.5px solid rgba(255,255,255,0.15);
-      background: rgba(10,10,15,0.7);
+      background: rgba(3,7,18,0.7);
       backdrop-filter: blur(8px);
       color: rgba(255,255,255,0.4);
       cursor: pointer;
@@ -398,7 +399,7 @@
     }
     .btn-read.done {
       background: var(--accent);
-      color: var(--bg);
+      color: #ffffff;
       border-color: var(--accent);
       opacity: 1;
       animation: readPop 0.3s ease;
@@ -418,7 +419,7 @@
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; width: 100vw; height: 100dvh;
-  background: rgba(10, 10, 15, 0.85);
+  background: rgba(3, 7, 18, 0.85);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   z-index: 999;
@@ -463,7 +464,7 @@
   top: 16px; right: 16px;
   width: 36px; height: 36px;
   border-radius: 50%;
-  background: rgba(10, 10, 15, 0.6);
+  background: rgba(3, 7, 18, 0.6);
   border: 1px solid var(--border);
   color: #fff;
   font-size: 20px;
@@ -505,11 +506,16 @@
   padding: 14px;
   border-radius: 12px;
   background: var(--accent);
-  color: #0a0a0f;
+  color: #ffffff;
   font-weight: 700;
   font-size: 16px;
   text-decoration: none;
-  transition: transform 0.2s;
+  transition: all 0.2s;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+}
+.modal-btn:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
 }
 .modal-btn:active {
   transform: scale(0.98);
