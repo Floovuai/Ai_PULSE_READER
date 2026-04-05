@@ -260,45 +260,75 @@
     
     const item = window.podcastNewsList[window.podcastIndex];
     
-    let textToRead = "";
-    if (window.podcastIndex === 0) {
-      textToRead += "Bienvenidos al resumen de inteligencia artificial. Para empezar, te cuento: ";
-    } else if (window.podcastIndex === window.podcastNewsList.length - 1) {
-      textToRead += "Y por último, te comento que: ";
-    } else {
-      const transiciones = ["Además, te cuento que: ", "Por otro lado, ", "También es importante saber que: ", "Siguiendo con más novedades, ", "Otra noticia destacada es: "];
-      textToRead += transiciones[window.podcastIndex % transiciones.length];
-    }
-    
-    textToRead += item.title + ". " + (item.summary ? ("En resumen, " + item.summary) : "");
-    
-    const utterance = new SpeechSynthesisUtterance(textToRead);
-    utterance.lang = 'es-AR';
-    utterance.rate = 0.95;
-    utterance.pitch = 1.05;
-    
     const voices = window.speechSynthesis.getVoices();
-    if (voices && voices.length > 0) {
-      let bestVoice = voices.find(v => v.lang.includes('es-AR') && (v.name.includes('Natural') || v.name.includes('Online') || v.name.includes('Network')));
-      if (!bestVoice) bestVoice = voices.find(v => v.lang.includes('es-AR'));
-      if (!bestVoice) bestVoice = voices.find(v => v.lang.startsWith('es') && (v.name.includes('Google') || v.name.includes('Premium') || v.name.includes('Natural')));
-      if (bestVoice) {
-        utterance.voice = bestVoice;
-      }
+    let host1 = voices.find(v => v.lang.includes('es-AR') && (v.name.includes('Natural') || v.name.includes('Online')));
+    if (!host1) host1 = voices.find(v => v.lang.includes('es-AR'));
+    
+    let host2 = voices.find(v => v !== host1 && v.lang.includes('es-AR'));
+    if (!host2) host2 = voices.find(v => v !== host1 && v.lang.startsWith('es') && (v.name.includes('Natural') || v.name.includes('Premium')));
+    if (!host2) host2 = host1; // Fallback to same voice, will use pitch offset
+    
+    let utterances = [];
+    
+    // Host 1: Presenta el título
+    let text1 = "";
+    if (window.podcastIndex === 0) {
+      text1 = "Bienvenidos al resumen de IA. Para empezar, te cuento: " + item.title;
+    } else if (window.podcastIndex === window.podcastNewsList.length - 1) {
+      text1 = "Y por último, te comento que: " + item.title;
+    } else {
+      const transiciones = ["Tengo otra noticia: ", "Pasando a otro tema, ", "Escucha esto: ", "Siguiendo con más novedades, ", "A ver qué te parece esta: "];
+      text1 = transiciones[window.podcastIndex % transiciones.length] + item.title;
     }
     
-    utterance.onend = function() {
-      if (window.isPodcastMode) {
-        window.podcastIndex++;
-        setTimeout(() => {
-          if (window.isPodcastMode) {
-            playNextPodcastItem();
-          }
-        }, 1000);
-      }
-    };
+    const u1 = new SpeechSynthesisUtterance(text1);
+    u1.lang = 'es-AR';
+    u1.rate = 0.95;
+    u1.pitch = 1.0;
+    if (host1) u1.voice = host1;
+    utterances.push(u1);
     
-    window.speechSynthesis.speak(utterance);
+    // Host 2: Cuenta el resumen como un diálogo
+    if (item.summary) {
+      const respuestas = ["Claro, y en resumen, ", "Interesante. Básicamente, ", "Así es. Te resumo que ", "Exacto. El punto clave es que "];
+      const text2 = respuestas[window.podcastIndex % respuestas.length] + item.summary;
+      
+      const u2 = new SpeechSynthesisUtterance(text2);
+      u2.lang = host2 && host2.lang ? host2.lang : 'es-AR';
+      u2.rate = 0.98;
+      // Use higher pitch if it's the exact same voice to simulate 2nd person
+      u2.pitch = (host1 === host2) ? 1.35 : 1.08;
+      if (host2) u2.voice = host2;
+      utterances.push(u2);
+    }
+    
+    function speakSequentially() {
+      if (utterances.length === 0 || !window.isPodcastMode) {
+        if (window.isPodcastMode) {
+          // Marcar como leída y desaparecer de la interfaz
+          markAsRead(item.url);
+          applyFilter(activeFilter);
+          
+          window.podcastIndex++;
+          setTimeout(() => {
+            if (window.isPodcastMode) {
+              playNextPodcastItem();
+            }
+          }, 1200);
+        }
+        return;
+      }
+      
+      const u = utterances.shift();
+      u.onend = function() {
+        if (window.isPodcastMode) {
+          speakSequentially();
+        }
+      };
+      window.speechSynthesis.speak(u);
+    }
+    
+    speakSequentially();
   };
 
   window.closeModal = function(event) {
