@@ -94,13 +94,16 @@
             </div>
             <h2 id="modalTitle" class="modal-title"></h2>
             <div id="modalSummary" class="modal-summary-text"></div>
-            <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 24px;">
-              <button id="btnTTS" class="modal-btn" onclick="toggleTTS()" style="background: var(--surface2); color: var(--text); border: 1px solid rgba(255,255,255,0.1);">
+            <div class="modal-actions-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 24px;">
+              <button id="btnTTS" class="modal-btn" onclick="toggleTTS()" style="grid-column: span 2; background: var(--accent); color: white;">
                 <span id="ttsIcon">🔊</span> <span id="ttsText">Escuchar Resumen</span>
               </button>
-              <a id="modalLink" class="modal-btn" href="#" target="_blank" rel="noopener noreferrer">
-                Leer artículo original
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <button id="btnRate" class="modal-btn" onclick="toggleRate()" style="background: var(--surface2); color: var(--text); border: 1px solid rgba(255,255,255,0.1); box-shadow: none;">
+                ⏱️ <span id="rateBtnText">Velocidad: Normal</span>
+              </button>
+              <a id="modalLink" class="modal-btn" href="#" target="_blank" rel="noopener noreferrer" style="background: var(--surface2); color: var(--text); border: 1px solid rgba(255,255,255,0.1); box-shadow: none;">
+                Leer artículo
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line>
                 </svg>
               </a>
@@ -179,6 +182,13 @@
     document.getElementById('modalSummary').textContent = item.summary || 'Sin resumen disponible.';
     document.getElementById('modalLink').href = item.url;
     
+    // Sync speed button text
+    const rateText = document.getElementById('rateBtnText');
+    if (rateText) {
+      const labels = ["Normal", "Rápida", "Muy Rápida"];
+      rateText.textContent = `Velocidad: ${labels[window.rateLevel || 0]}`;
+    }
+
     document.getElementById('newsModal').classList.add('visible');
     document.body.style.overflow = 'hidden'; // Prevent background scrolling
   }
@@ -325,54 +335,50 @@
     if (window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
       window.isSpeaking = false;
-      const bgMusic = document.getElementById('bgMusic');
-      if (bgMusic) bgMusic.pause();
       resetTTSButton();
       return;
     }
 
     const title = document.getElementById('modalTitle').textContent;
     const summary = document.getElementById('modalSummary').textContent;
-    const textToRead = "Te cuento: " + title + ". En resumen, " + summary;
+    
+    // Intros dinámicas para un efecto más humano
+    const intros = [
+      "Escucha esta novedad: ",
+      "Aquí tienes los detalles: ",
+      "Te cuento lo más importante: ",
+      "Atención a esta noticia: ",
+      "Esto es lo que está pasando: "
+    ];
+    const randomIntro = intros[Math.floor(Math.random() * intros.length)];
+    const textToRead = randomIntro + title + ". ... " + summary;
 
     const utterance = new SpeechSynthesisUtterance(textToRead);
-    utterance.lang = 'es-AR'; // Spanish (Argentina)
+    utterance.lang = 'es-ES'; // Prefer Spanish
     
-    // Configuraciones humanizadas
-    utterance.rate = Math.min(2, 0.95 + window.rateOffset);  // Una velocidad un 5% más lenta + ajuste
-    utterance.pitch = 1.05; // Tono ligeramente animado
+    // Ajustar velocidad basada en el control del usuario
+    // Base 1.0 (Normal), offset añade 0.25 o 0.5
+    utterance.rate = 1.0 + (window.rateOffset || 0); 
+    utterance.pitch = 1.0;
     
-    // Intentar seleccionar una voz masculina de mejor calidad
     const voices = window.speechSynthesis.getVoices();
     if (voices && voices.length > 0) {
-      const isMale = v => /Tomas|Diego|Jorge|Pablo|Alvaro|Enrique|Raul|Antonio|Male/i.test(v.name);
+      // Prioridad 1: Voces Neurales/Online de Google o Microsoft (son las de mejor calidad)
+      let bestVoice = voices.find(v => (v.lang.startsWith('es')) && (v.name.includes('Neural') || v.name.includes('Online') || v.name.includes('Google')));
       
-      // 1. Priorizar voz Argentina masculina "Natural" o "Red"
-      let bestVoice = voices.find(v => v.lang.includes('es-AR') && isMale(v) && (v.name.includes('Natural') || v.name.includes('Online') || v.name.includes('Network')));
-      // 2. Si no es "Natural", buscar cualquier voz Argentina masculina
-      if (!bestVoice) bestVoice = voices.find(v => v.lang.includes('es-AR') && isMale(v));
-      // 3. Fallback a voz neutra masculina de alta calidad
-      if (!bestVoice) bestVoice = voices.find(v => v.lang.startsWith('es') && isMale(v) && (v.name.includes('Google') || v.name.includes('Premium') || v.name.includes('Natural')));
-      // 4. Fallback final
-      if (!bestVoice) bestVoice = voices.find(v => v.lang.includes('es-AR'));
+      // Prioridad 2: Cualquier voz en español que suene natural
+      if (!bestVoice) bestVoice = voices.find(v => v.lang.startsWith('es') && (v.name.includes('Natural') || v.name.includes('Premium')));
       
-      if (bestVoice) {
-        utterance.voice = bestVoice;
-      }
+      // Prioridad 3: Fallback a cualquier voz en español de Argentina o España
+      if (!bestVoice) bestVoice = voices.find(v => v.lang.includes('es-AR') || v.lang.includes('es-ES'));
+
+      if (bestVoice) utterance.voice = bestVoice;
     }
     
     utterance.onend = function() {
       window.isSpeaking = false;
-      const bgMusic = document.getElementById('bgMusic');
-      if (bgMusic) bgMusic.pause();
       resetTTSButton();
     };
-
-    const bgMusic = document.getElementById('bgMusic');
-    if (bgMusic && window.bgMusicEnabled) {
-        bgMusic.volume = 0.05; // Dim music while speaking
-        bgMusic.play().catch(e => console.log('Music resume skipped:', e));
-    }
 
     window.speechSynthesis.speak(utterance);
     window.isSpeaking = true;
