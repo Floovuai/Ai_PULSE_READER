@@ -171,15 +171,19 @@
     utterance.rate = 0.95;  // Una velocidad un 5% más lenta suena más reflexiva y humana
     utterance.pitch = 1.05; // Tono ligeramente animado
     
-    // Intentar seleccionar la voz de mejor calidad (Neural/Online) instalada
+    // Intentar seleccionar una voz masculina de mejor calidad
     const voices = window.speechSynthesis.getVoices();
     if (voices && voices.length > 0) {
-      // 1. Priorizar voz Argentina "Natural" o "Red"
-      let bestVoice = voices.find(v => v.lang.includes('es-AR') && (v.name.includes('Natural') || v.name.includes('Online') || v.name.includes('Network')));
-      // 2. Si no es "Natural", buscar cualquier voz Argentina
+      const isMale = v => /Tomas|Diego|Jorge|Pablo|Alvaro|Enrique|Raul|Antonio|Male/i.test(v.name);
+      
+      // 1. Priorizar voz Argentina masculina "Natural" o "Red"
+      let bestVoice = voices.find(v => v.lang.includes('es-AR') && isMale(v) && (v.name.includes('Natural') || v.name.includes('Online') || v.name.includes('Network')));
+      // 2. Si no es "Natural", buscar cualquier voz Argentina masculina
+      if (!bestVoice) bestVoice = voices.find(v => v.lang.includes('es-AR') && isMale(v));
+      // 3. Fallback a voz neutra masculina de alta calidad
+      if (!bestVoice) bestVoice = voices.find(v => v.lang.startsWith('es') && isMale(v) && (v.name.includes('Google') || v.name.includes('Premium') || v.name.includes('Natural')));
+      // 4. Fallback final
       if (!bestVoice) bestVoice = voices.find(v => v.lang.includes('es-AR'));
-      // 3. Fallback a voz neutra de alta calidad (Google/Siri/Premium)
-      if (!bestVoice) bestVoice = voices.find(v => v.lang.startsWith('es') && (v.name.includes('Google') || v.name.includes('Premium') || v.name.includes('Natural')));
       
       if (bestVoice) {
         utterance.voice = bestVoice;
@@ -261,12 +265,15 @@
     const item = window.podcastNewsList[window.podcastIndex];
     
     const voices = window.speechSynthesis.getVoices();
-    let host1 = voices.find(v => v.lang.includes('es-AR') && (v.name.includes('Natural') || v.name.includes('Online')));
+    const isMale = v => /Tomas|Diego|Jorge|Pablo|Alvaro|Enrique|Raul|Antonio|Male/i.test(v.name);
+    
+    let host1 = voices.find(v => v.lang.includes('es-AR') && isMale(v) && (v.name.includes('Natural') || v.name.includes('Online')));
+    if (!host1) host1 = voices.find(v => v.lang.includes('es-AR') && isMale(v));
     if (!host1) host1 = voices.find(v => v.lang.includes('es-AR'));
     
-    let host2 = voices.find(v => v !== host1 && v.lang.includes('es-AR'));
-    if (!host2) host2 = voices.find(v => v !== host1 && v.lang.startsWith('es') && (v.name.includes('Natural') || v.name.includes('Premium')));
-    if (!host2) host2 = host1; // Fallback to same voice, will use pitch offset
+    let host2 = voices.find(v => v !== host1 && v.lang.includes('es-AR') && isMale(v));
+    if (!host2) host2 = voices.find(v => v !== host1 && v.lang.startsWith('es') && isMale(v) && (v.name.includes('Natural') || v.name.includes('Premium')));
+    if (!host2) host2 = host1; // Fallback to same voice, will use a low pitch offset to sound like another masculine voice
     
     let utterances = [];
     
@@ -284,7 +291,8 @@
     const u1 = new SpeechSynthesisUtterance(text1);
     u1.lang = 'es-AR';
     u1.rate = 0.95;
-    u1.pitch = 1.0;
+    // Host 1 pitch grave para sonar masculino
+    u1.pitch = 0.85;
     if (host1) u1.voice = host1;
     utterances.push(u1);
     
@@ -296,8 +304,8 @@
       const u2 = new SpeechSynthesisUtterance(text2);
       u2.lang = host2 && host2.lang ? host2.lang : 'es-AR';
       u2.rate = 0.98;
-      // Use higher pitch if it's the exact same voice to simulate 2nd person
-      u2.pitch = (host1 === host2) ? 1.35 : 1.08;
+      // Host 2: Si es la misma voz usar 1.0 para separarla, sino 0.9. Ambas graves/masculinas.
+      u2.pitch = (host1 === host2) ? 1.0 : 0.9;
       if (host2) u2.voice = host2;
       utterances.push(u2);
     }

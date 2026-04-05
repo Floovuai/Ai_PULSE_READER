@@ -59,16 +59,20 @@
     .logo-text {
       font-family: 'Plus Jakarta Sans', sans-serif;
       font-weight: 800;
-      font-size: 21px;
+      font-size: 18px; /* Slightly smaller for mobile */
       letter-spacing: -0.3px;
       color: var(--text);
       line-height: 1.2;
     }
 
-    .logo-text span {
+    .logo-text .title {
+      font-size: 18px;
+    }
+
+    .logo-text .subtitle {
       color: var(--muted);
       display: block;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
       letter-spacing: 1.5px;
       margin-top: 3px;
