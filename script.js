@@ -5,6 +5,24 @@
   const CACHE_TTL   = 15 * 60 * 1000; // 15 min
   const READ_KEY    = 'ainews_read';   // IDs de artículos leídos
   // ──────────────────────────────────────────────────────────
+  
+  // Helper centralizado para voces Neurales/Pro
+  function getNeuralVoices() {
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices || voices.length === 0) return { host1: null, host2: null };
+    
+    // Prioridad 1: Voces Neurales/Online (Google, Microsoft)
+    let h1 = voices.find(v => v.lang.startsWith('es') && (v.name.includes('Neural') || v.name.includes('Online') || v.name.includes('Google')));
+    if (!h1) h1 = voices.find(v => v.lang.startsWith('es') && (v.name.includes('Natural') || v.name.includes('Premium')));
+    if (!h1) h1 = voices.find(v => v.lang.includes('es-AR') || v.lang.includes('es-ES'));
+
+    // Host 2: Preferiblemente una voz distinta del mismo catálogo pro
+    let h2 = voices.find(v => v !== h1 && v.lang.startsWith('es') && (v.name.includes('Neural') || v.name.includes('Online')));
+    if (!h2) h2 = voices.find(v => v !== h1 && v.lang.startsWith('es') && (v.name.includes('Natural')));
+    if (!h2) h2 = h1;
+
+    return { host1: h1, host2: h2 };
+  }
 
   let allNews = [];
   let activeFilter = 'all';
@@ -342,7 +360,6 @@
     const title = document.getElementById('modalTitle').textContent;
     const summary = document.getElementById('modalSummary').textContent;
     
-    // Intros dinámicas para un efecto más humano
     const intros = [
       "Escucha esta novedad: ",
       "Aquí tienes los detalles: ",
@@ -354,26 +371,11 @@
     const textToRead = randomIntro + title + ". ... " + summary;
 
     const utterance = new SpeechSynthesisUtterance(textToRead);
-    utterance.lang = 'es-ES'; // Prefer Spanish
-    
-    // Ajustar velocidad basada en el control del usuario
-    // Base 1.0 (Normal), offset añade 0.25 o 0.5
+    utterance.lang = 'es-ES';
     utterance.rate = 1.0 + (window.rateOffset || 0); 
-    utterance.pitch = 1.0;
     
-    const voices = window.speechSynthesis.getVoices();
-    if (voices && voices.length > 0) {
-      // Prioridad 1: Voces Neurales/Online de Google o Microsoft (son las de mejor calidad)
-      let bestVoice = voices.find(v => (v.lang.startsWith('es')) && (v.name.includes('Neural') || v.name.includes('Online') || v.name.includes('Google')));
-      
-      // Prioridad 2: Cualquier voz en español que suene natural
-      if (!bestVoice) bestVoice = voices.find(v => v.lang.startsWith('es') && (v.name.includes('Natural') || v.name.includes('Premium')));
-      
-      // Prioridad 3: Fallback a cualquier voz en español de Argentina o España
-      if (!bestVoice) bestVoice = voices.find(v => v.lang.includes('es-AR') || v.lang.includes('es-ES'));
-
-      if (bestVoice) utterance.voice = bestVoice;
-    }
+    const { host1 } = getNeuralVoices();
+    if (host1) utterance.voice = host1;
     
     utterance.onend = function() {
       window.isSpeaking = false;
@@ -389,9 +391,100 @@
     if (ttsIcon) ttsIcon.textContent = '⏹️';
   };
 
-  window.isPodcastMode = false;
-  window.podcastIndex = 0;
-  window.podcastNewsList = [];
+  window.playNextPodcastItem = function() {
+    if (!window.isPodcastMode || window.podcastIndex >= window.podcastNewsList.length) {
+      window.isPodcastMode = false;
+      resetPodcastButtonUI();
+      return;
+    }
+    
+    const item = window.podcastNewsList[window.podcastIndex];
+    if (isRead(item.url)) { // Saltar si ya se leyó
+      window.podcastIndex++;
+      playNextPodcastItem();
+      return;
+    }
+
+    const { host1, host2 } = getNeuralVoices();
+    let utterances = [];
+    
+    // --- DIÁLOGO HOST 1 (Intro & Título) ---
+    let text1 = "";
+    const introsH1 = [
+      "¡Hola! Bienvenidos. Hoy tenemos una noticia interesante: ",
+      "Atención a lo siguiente: ",
+      "Me ha llamado mucho la atención esto: ",
+      "Pasando a otros temas, mira lo que está pasando: ",
+      "Y no te pierdas esta última hora: "
+    ];
+    if (window.podcastIndex === 0) {
+      text1 = "¡Comenzamos nuestro resumen diario de IA! El primer tema de hoy es: " + item.title;
+    } else {
+      text1 = introsH1[Math.floor(Math.random() * introsH1.length)] + item.title;
+    }
+    
+    const u1 = new SpeechSynthesisUtterance(text1);
+    if (host1) u1.voice = host1;
+    u1.rate = 1.0 + (window.rateOffset || 0);
+    u1.pitch = 1.04;
+    utterances.push(u1);
+    
+    // --- DIÁLOGO HOST 2 (Reacción & Resumen) ---
+    if (item.summary) {
+      const reactionsH2 = [
+        "¡Uf, eso suena impactante! Según entiendo, ",
+        "Es un tema clave. Lo que se comenta es que ",
+        "Vaya, no lo sabía. El resumen es básicamente que ",
+        "Claro, y lo más importante es que ",
+        "¡Interesante! Mira, para los que nos escuchan, el punto central es que "
+      ];
+      const text2 = reactionsH2[Math.floor(Math.random() * reactionsH2.length)] + item.summary;
+      
+      const u2 = new SpeechSynthesisUtterance(text2);
+      if (host2) u2.voice = host2;
+      u2.rate = 1.05 + (window.rateOffset || 0);
+      // Si es la misma voz que H1, cambiar pitch para diferenciar
+      u2.pitch = (host1 === host2) ? 0.85 : 1.0; 
+      utterances.push(u2);
+    }
+    
+    function speakSequentially() {
+      if (utterances.length === 0) {
+        // Al terminar un ítem, lo marcamos como leído y actualizamos UI
+        markAsRead(item.url);
+        applyFilter(activeFilter);
+        
+        window.podcastIndex++;
+        // Pequeña pausa entre noticias antes de la siguiente
+        setTimeout(() => {
+          if (window.isPodcastMode) playNextPodcastItem();
+        }, 1500);
+        return;
+      }
+      
+      const u = utterances.shift();
+      u.onend = () => {
+        if (window.isPodcastMode) speakSequentially();
+      };
+      u.onerror = (e) => {
+        console.error("Audio playback error:", e);
+        if (window.isPodcastMode) speakSequentially(); // Force continue even on error
+      };
+      window.speechSynthesis.speak(u);
+    }
+    
+    speakSequentially();
+  };
+
+  function resetPodcastButtonUI() {
+    const btn = document.getElementById('podcastBtn');
+    const textSpan = document.getElementById('podcastBtnText');
+    if(btn) {
+      btn.style.background = 'rgba(255, 255, 255, 0.1)';
+      btn.style.color = 'var(--accent)';
+    }
+    if(textSpan) textSpan.textContent = "Modo Podcast";
+  }
 
   window.togglePodcast = function() {
     if (!('speechSynthesis' in window)) {
@@ -399,139 +492,33 @@
       return;
     }
     
-    const btn = document.getElementById('podcastBtn');
-    const textSpan = document.getElementById('podcastBtnText');
-    
     if (window.isPodcastMode) {
-      // Stop podcast
       window.isPodcastMode = false;
       window.speechSynthesis.cancel();
-      const bgMusic = document.getElementById('bgMusic');
-      if (bgMusic) bgMusic.pause();
-      if(btn) {
-        btn.style.background = 'rgba(255, 255, 255, 0.1)';
-        btn.style.color = 'var(--accent)';
-      }
-      if(textSpan) textSpan.textContent = "Modo Podcast";
+      resetPodcastButtonUI();
       return;
     }
     
-    // Start podcast
+    // Obtener noticias NO leídas para el podcast
+    const unreadList = (window.currentNewsList || []).filter(item => !isRead(item.url));
+    if (unreadList.length === 0) {
+      alert("No hay noticias nuevas para el podcast.");
+      return;
+    }
+    
     window.isPodcastMode = true;
     window.podcastIndex = 0;
+    window.podcastNewsList = unreadList;
     
-    const listToRead = window.currentNewsList || [];
-    if (listToRead.length === 0) {
-      alert("No hay noticias no leídas para el podcast.");
-      window.isPodcastMode = false;
-      return;
-    }
-    
-    window.podcastNewsList = listToRead;
-    
+    const btn = document.getElementById('podcastBtn');
+    const textSpan = document.getElementById('podcastBtnText');
     if(btn) {
       btn.style.background = 'var(--accent)';
       btn.style.color = 'white';
     }
     if(textSpan) textSpan.textContent = "Detener Podcast";
     
-    const bgMusic = document.getElementById('bgMusic');
-    if (bgMusic && window.bgMusicEnabled) {
-        bgMusic.volume = 0.08;
-        bgMusic.play().catch(e => console.log('Audio play error:', e));
-    }
-    
     playNextPodcastItem();
-  };
-
-  window.playNextPodcastItem = function() {
-    if (!window.isPodcastMode || window.podcastIndex >= window.podcastNewsList.length) {
-      window.isPodcastMode = false;
-      const btn = document.getElementById('podcastBtn');
-      const textSpan = document.getElementById('podcastBtnText');
-      if(btn) {
-        btn.style.background = 'rgba(255, 255, 255, 0.1)';
-        btn.style.color = 'var(--accent)';
-      }
-      if(textSpan) textSpan.textContent = "Modo Podcast";
-      return;
-    }
-    
-    const item = window.podcastNewsList[window.podcastIndex];
-    
-    const voices = window.speechSynthesis.getVoices();
-    const isMale = v => /Tomas|Diego|Jorge|Pablo|Alvaro|Enrique|Raul|Antonio|Male/i.test(v.name);
-    
-    let host1 = voices.find(v => v.lang.includes('es-AR') && isMale(v) && (v.name.includes('Natural') || v.name.includes('Online')));
-    if (!host1) host1 = voices.find(v => v.lang.includes('es-AR') && isMale(v));
-    if (!host1) host1 = voices.find(v => v.lang.includes('es-AR'));
-    
-    let host2 = voices.find(v => v !== host1 && v.lang.includes('es-AR') && isMale(v));
-    if (!host2) host2 = voices.find(v => v !== host1 && v.lang.startsWith('es') && isMale(v) && (v.name.includes('Natural') || v.name.includes('Premium')));
-    if (!host2) host2 = host1; // Fallback to same voice, will use a low pitch offset to sound like another masculine voice
-    
-    let utterances = [];
-    
-    // Host 1: Presenta el título
-    let text1 = "";
-    if (window.podcastIndex === 0) {
-      text1 = "Bienvenidos al resumen de IA. Para empezar, te cuento: " + item.title;
-    } else if (window.podcastIndex === window.podcastNewsList.length - 1) {
-      text1 = "Y por último, te comento que: " + item.title;
-    } else {
-      const transiciones = ["Tengo otra noticia: ", "Pasando a otro tema, ", "Escucha esto: ", "Siguiendo con más novedades, ", "A ver qué te parece esta: "];
-      text1 = transiciones[window.podcastIndex % transiciones.length] + item.title;
-    }
-    
-    const u1 = new SpeechSynthesisUtterance(text1);
-    u1.lang = 'es-AR';
-    u1.rate = Math.min(2, 0.95 + window.rateOffset);
-    // Host 1 pitch grave para sonar masculino
-    u1.pitch = 0.85;
-    if (host1) u1.voice = host1;
-    utterances.push(u1);
-    
-    // Host 2: Cuenta el resumen como un diálogo
-    if (item.summary) {
-      const respuestas = ["Claro, y en resumen, ", "Interesante. Básicamente, ", "Así es. Te resumo que ", "Exacto. El punto clave es que "];
-      const text2 = respuestas[window.podcastIndex % respuestas.length] + item.summary;
-      
-      const u2 = new SpeechSynthesisUtterance(text2);
-      u2.lang = host2 && host2.lang ? host2.lang : 'es-AR';
-      u2.rate = Math.min(2, 0.98 + window.rateOffset);
-      // Host 2: Si es la misma voz usar 1.0 para separarla, sino 0.9. Ambas graves/masculinas
-      u2.pitch = (host1 === host2) ? 1.0 : 0.9;
-      if (host2) u2.voice = host2;
-      utterances.push(u2);
-    }
-    
-    function speakSequentially() {
-      if (utterances.length === 0 || !window.isPodcastMode) {
-        if (window.isPodcastMode) {
-          // Marcar como leída y desaparecer de la interfaz
-          markAsRead(item.url);
-          applyFilter(activeFilter);
-          
-          window.podcastIndex++;
-          setTimeout(() => {
-            if (window.isPodcastMode) {
-              playNextPodcastItem();
-            }
-          }, 1200);
-        }
-        return;
-      }
-      
-      const u = utterances.shift();
-      u.onend = function() {
-        if (window.isPodcastMode) {
-          speakSequentially();
-        }
-      };
-      window.speechSynthesis.speak(u);
-    }
-    
-    speakSequentially();
   };
 
   window.closeModal = function(event) {
