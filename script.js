@@ -298,3 +298,6 @@
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) loadNews();
   });
+
+  // Auto-refresh every 15 minutes automatically if left open
+  setInterval(() => loadNews(), 15 * 60 * 1000);
