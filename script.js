@@ -199,6 +199,9 @@
                   <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line>
                 </svg>
               </a>
+              <button id="btnMarkRead" class="modal-btn" onclick="toggleReadFromModal()" style="grid-column: span 2; background: var(--surface2); color: var(--text); border: 1px solid rgba(255,255,255,0.1); box-shadow: none;">
+                <span id="markReadIcon">✓</span> <span id="markReadText">Marcar como leída</span>
+              </button>
             </div>
           </div>
         </div>
@@ -250,6 +253,8 @@
     });
   }
 
+  window.currentModalIndex = -1;
+
   window.openModal = function(index) {
     // Reset TTS state before opening
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
@@ -258,6 +263,8 @@
 
     const item = window.currentNewsList[index];
     if (!item) return;
+    window.currentModalIndex = index;
+
     const seed = encodeURIComponent((item.title || 'IA').substring(0, 40));
     const fallbackImg = `https://api.dicebear.com/9.x/shapes/svg?seed=${seed}&backgroundColor=18181f`;
     const picsumImg = `https://picsum.photos/seed/${seed}/600/300`;
@@ -281,8 +288,49 @@
       rateText.textContent = `Velocidad: ${labels[window.rateLevel || 0]}`;
     }
 
+    // Sync read button state
+    syncReadButton(item.url);
+
     document.getElementById('newsModal').classList.add('visible');
     document.body.style.overflow = 'hidden'; // Prevent background scrolling
+  }
+
+  function syncReadButton(articleUrl) {
+    const icon = document.getElementById('markReadIcon');
+    const text = document.getElementById('markReadText');
+    if (!icon || !text) return;
+    const read = isRead(articleUrl);
+    icon.textContent = read ? '↩' : '✓';
+    text.textContent = read ? 'Desmarcar como leída' : 'Marcar como leída';
+  }
+
+  window.toggleReadFromModal = function() {
+    const item = window.currentNewsList[window.currentModalIndex];
+    if (!item) return;
+
+    if (isRead(item.url)) {
+      // Unmark: remove from read map
+      const map = getReadMap();
+      delete map[item.url];
+      localStorage.setItem(READ_KEY, JSON.stringify(map));
+    } else {
+      markAsRead(item.url);
+    }
+
+    // Update button state
+    syncReadButton(item.url);
+
+    // Re-render card list so the read state is reflected
+    renderCards(allNews.filter(n => {
+      const key = getSourceKey(n);
+      const resolved = resolveFilter(activeFilter);
+      if (resolved !== 'all' && key !== resolved) return false;
+      if (activeCategory !== 'Todas') {
+        const catSources = CATEGORY_MAP[activeCategory] || [];
+        if (!catSources.includes(key)) return false;
+      }
+      return true;
+    }));
   }
 
   function resetTTSButton() {
