@@ -598,3 +598,43 @@
   flex-shrink: 0;
 }
 
+/* ─── Category Bar ─────────────────────────────────────── */
+.category-bar {
+  display: flex;
+  gap: 6px;
+  padding: 10px 0 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.category-bar::-webkit-scrollbar { display: none; }
+
+.category-pill {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: 99px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  letter-spacing: -0.2px;
+}
+
+.category-pill.active {
+  background: var(--accent);
+  color: #ffffff;
+  box-shadow: 0 2px 12px rgba(10, 132, 255, 0.3);
+}
+
+.category-pill:not(.active):active {
+  background: rgba(255, 255, 255, 0.08);
+  transform: scale(0.96);
+}
+
+
+

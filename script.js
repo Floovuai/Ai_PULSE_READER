@@ -5,6 +5,16 @@
   const CACHE_TTL   = 15 * 60 * 1000; // 15 min
   const READ_KEY    = 'ainews_read';   // IDs de artículos leídos
   // ──────────────────────────────────────────────────────────
+
+  // ─── CATEGORY MAP (agrupa fuentes de n8n por categoría) ──
+  const CATEGORY_MAP = {
+    'Inteligencia Artificial': ['openai', 'anthropic', 'langchain', 'huggingface'],
+    'Tecnología': ['xataka', 'techcrunch', 'venturebeat', 'technologyreview'],
+    'Comunidad': ['reddit']
+  };
+
+  let activeCategory = 'Todas';
+  // ──────────────────────────────────────────────────────────
   
   // Helper centralizado para voces Neurales/Pro - Prioridad Argentina
   function getNeuralVoices() {
@@ -29,22 +39,80 @@
   let allNews = [];
   let activeFilter = 'all';
 
-  // Read articles management
-  function getReadIds() {
-    try { return JSON.parse(localStorage.getItem(READ_KEY) || '[]'); } catch(e) { return []; }
+  // ─── Read articles management (with auto-cleanup) ──────
+  const READ_TTL = 7 * 24 * 60 * 60 * 1000; // 7 días
+  const READ_MAX = 500; // Máximo de URLs recordadas
+
+  function getReadMap() {
+    // Formato: { url: timestamp, url2: timestamp2, ... }
+    try {
+      const raw = localStorage.getItem(READ_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      // Migración: si es un array viejo, convertir a map
+      if (Array.isArray(parsed)) {
+        const map = {};
+        const now = Date.now();
+        parsed.forEach(url => map[url] = now);
+        localStorage.setItem(READ_KEY, JSON.stringify(map));
+        return map;
+      }
+      return parsed;
+    } catch(e) { return {}; }
   }
 
   function markAsRead(articleUrl) {
-    const readIds = getReadIds();
-    if (!readIds.includes(articleUrl)) {
-      readIds.push(articleUrl);
-      localStorage.setItem(READ_KEY, JSON.stringify(readIds));
-    }
+    const map = getReadMap();
+    map[articleUrl] = Date.now();
+    localStorage.setItem(READ_KEY, JSON.stringify(map));
   }
 
   function isRead(articleUrl) {
-    return getReadIds().includes(articleUrl);
+    return articleUrl in getReadMap();
   }
+
+  // Auto-limpieza: elimina leídas > 7 días y recorta si hay > 500
+  function cleanupReadArticles() {
+    const map = getReadMap();
+    const now = Date.now();
+    const entries = Object.entries(map);
+    let changed = false;
+
+    // 1) Eliminar por TTL (> 7 días)
+    for (const [url, ts] of entries) {
+      if (now - ts > READ_TTL) {
+        delete map[url];
+        changed = true;
+      }
+    }
+
+    // 2) Si aún hay demasiadas, recortar las más antiguas
+    const remaining = Object.entries(map);
+    if (remaining.length > READ_MAX) {
+      remaining.sort((a, b) => a[1] - b[1]); // Más antiguas primero
+      const toRemove = remaining.slice(0, remaining.length - READ_MAX);
+      for (const [url] of toRemove) {
+        delete map[url];
+      }
+      changed = true;
+    }
+
+    if (changed) {
+      localStorage.setItem(READ_KEY, JSON.stringify(map));
+      console.log(`🧹 Auto-limpieza: ${entries.length - Object.keys(map).length} artículos leídos eliminados`);
+    }
+  }
+
+  // Limpiar todo manualmente (botón reset)
+  window.clearAllRead = function() {
+    if (!confirm('¿Borrar el historial de noticias leídas?\nTodas las noticias volverán a aparecer.')) return;
+    localStorage.removeItem(READ_KEY);
+    applyFilter(activeFilter);
+  };
+
+  // Ejecutar limpieza al cargar
+  cleanupReadArticles();
+  // ──────────────────────────────────────────────────────────
 
   // Source name map
   const sourceNames = {
@@ -535,13 +603,20 @@
     activeFilter = filter;
     const resolved = resolveFilter(filter);
     
+    // First apply category filter
+    let categoryFiltered = allNews;
+    if (activeCategory !== 'Todas') {
+      const catSources = CATEGORY_MAP[activeCategory] || [];
+      categoryFiltered = allNews.filter(n => catSources.includes(getSourceKey(n)));
+    }
+    
     let filtered;
     if (filter === 'all') {
-      filtered = allNews;
+      filtered = categoryFiltered;
     } else if (filter === 'tendencias') {
-      filtered = allNews.filter(n => (n.category || '').toLowerCase() === 'tendencias');
+      filtered = categoryFiltered.filter(n => (n.category || '').toLowerCase() === 'tendencias');
     } else {
-      filtered = allNews.filter(n => getSourceKey(n) === resolved);
+      filtered = categoryFiltered.filter(n => getSourceKey(n) === resolved);
     }
 
     const unread = filtered.filter(item => !isRead(item.url));
@@ -550,29 +625,83 @@
     renderCards(filtered);
   }
 
-  // Filter pills
+  // ─── CATEGORY BAR LOGIC ────────────────────────────────────
+  function renderCategoryBar() {
+    const bar = document.getElementById('categoryBar');
+    if (!bar) return;
+    const categories = ['Todas', ...Object.keys(CATEGORY_MAP)];
+    bar.innerHTML = categories.map(cat => 
+      `<button class="category-pill${cat === activeCategory ? ' active' : ''}" data-category="${cat}">${cat}</button>`
+    ).join('');
+    
+    bar.querySelectorAll('.category-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeCategory = btn.dataset.category;
+        bar.querySelectorAll('.category-pill').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderSourcePills();
+        applyFilter('all');
+      });
+    });
+  }
+
+  function renderSourcePills() {
+    const container = document.getElementById('sourcePills');
+    if (!container) return;
+    
+    let pills = '<button class="filter-pill active" data-filter="all">Todas</button>';
+    pills += '<button class="filter-pill" data-filter="tendencias" style="color: var(--accent2); font-weight: 700;">🔥 Tendencias</button>';
+    
+    let sourcesToShow = [];
+    if (activeCategory === 'Todas') {
+      sourcesToShow = Object.keys(sourceNames);
+    } else {
+      sourcesToShow = CATEGORY_MAP[activeCategory] || [];
+    }
+    
+    for (const key of sourcesToShow) {
+      const name = sourceNames[key] || key;
+      const filterKey = key === 'technologyreview' ? 'mittech' : key;
+      pills += `<button class="filter-pill" data-filter="${filterKey}">${name}</button>`;
+    }
+    
+    container.innerHTML = pills;
+    
+    // Re-attach filter pill event listeners
+    container.querySelectorAll('.filter-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        stopPodcastIfRunning();
+        container.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        applyFilter(btn.dataset.filter);
+      });
+    });
+  }
+
+  function stopPodcastIfRunning() {
+    if (window.isPodcastMode && 'speechSynthesis' in window) {
+      window.isPodcastMode = false;
+      window.speechSynthesis.cancel();
+      const pBtn = document.getElementById('podcastBtn');
+      const pText = document.getElementById('podcastBtnText');
+      if (pBtn) {
+        pBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+        pBtn.style.color = 'var(--accent)';
+      }
+      if (pText) pText.textContent = "Modo Podcast";
+    }
+  }
+
+  // Legacy filter pill listeners (for static pills if any remain)
   document.querySelectorAll('.filter-pill').forEach(btn => {
     btn.addEventListener('click', () => {
-      // Al haber separado las clases a .control-pill, aquí solo entran los filtros reales
-      
-      // Stop podcast if running when changing filters
-      if (window.isPodcastMode && 'speechSynthesis' in window) {
-        window.isPodcastMode = false;
-        window.speechSynthesis.cancel();
-        const pBtn = document.getElementById('podcastBtn');
-        const pText = document.getElementById('podcastBtnText');
-        if (pBtn) {
-          pBtn.style.background = 'rgba(255, 255, 255, 0.1)';
-          pBtn.style.color = 'var(--accent)';
-        }
-        if (pText) pText.textContent = "Modo Podcast";
-      }
-
+      stopPodcastIfRunning();
       document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       applyFilter(btn.dataset.filter);
     });
   });
+
 
   async function loadNews(forceRefresh = false) {
     const btn = document.getElementById('refreshBtn');
@@ -594,6 +723,7 @@
     }
 
     try {
+      // 1. Fetch from n8n (main sources)
       const res = await fetch(WEBHOOK_URL + '?apiKey=' + encodeURIComponent(API_KEY));
 
       if (res.status === 401) {
@@ -603,7 +733,6 @@
       if (!res.ok) throw new Error(`Error ${res.status}`);
 
       let payload = await res.json();
-      // Handle case where n8n double-stringifies
       if (typeof payload === 'string') {
         try { payload = JSON.parse(payload); } catch(e) {}
       }
@@ -619,7 +748,6 @@
     } catch (err) {
       const list = document.getElementById('newsList');
 
-      // Show cached data if available, even if stale
       if (allNews.length) {
         document.getElementById('lastUpdate').textContent = 'sin conexión';
       } else {
@@ -637,6 +765,8 @@
   }
 
   // Init
+  renderCategoryBar();
+  renderSourcePills();
   loadNews();
 
   // Auto-refresh when tab gets focus
