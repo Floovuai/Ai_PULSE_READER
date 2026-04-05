@@ -109,9 +109,11 @@
   window.openModal = function(index) {
     const item = window.currentNewsList[index];
     if (!item) return;
-    const seed = encodeURIComponent((item.title || 'IA').substring(0, 50));
+    const seed = encodeURIComponent((item.title || 'IA').substring(0, 40));
     const fallbackImg = `https://api.dicebear.com/9.x/shapes/svg?seed=${seed}&backgroundColor=18181f`;
-    const finalImg = item.image_url && item.image_url !== 'null' && item.image_url.startsWith('http') ? item.image_url : fallbackImg;
+    const picsumImg = `https://picsum.photos/seed/${seed}/600/300`;
+    const validSrc = item.image_url && item.image_url !== 'null' && item.image_url.startsWith('http') ? item.image_url : null;
+    const finalImg = validSrc || picsumImg;
     
     const imgEl = document.getElementById('modalImage');
     imgEl.src = finalImg;
@@ -161,9 +163,11 @@
       const sourceName = getSourceName(item);
       const time = timeAgo(item.published_at);
       
-      const seed = encodeURIComponent((item.title || 'IA').substring(0, 50));
+      const seed = encodeURIComponent((item.title || 'IA').substring(0, 40));
       const fallbackImg = `https://api.dicebear.com/9.x/shapes/svg?seed=${seed}&backgroundColor=18181f`;
-      const imageUrl = item.image_url && item.image_url !== 'null' && item.image_url.startsWith('http') ? item.image_url : fallbackImg;
+      const picsumImg = `https://picsum.photos/seed/${seed}/600/300`;
+      const validSrc = item.image_url && item.image_url !== 'null' && item.image_url.startsWith('http') ? item.image_url : null;
+      const imageUrl = validSrc || picsumImg;
 
       return `
         <div class="card${isFeatured ? ' featured' : ''}" style="animation-delay: ${i * 40}ms" data-url="${item.url}" onclick="openModal(${i})">
