@@ -44,20 +44,20 @@
     mittech: 'technologyreview',
   };
 
-  function getSourceName(sourceUrl) {
-    if (!sourceUrl) return 'IA';
-    const url = sourceUrl.toLowerCase();
+  function getSourceName(item) {
+    const url = (item.url || '').toLowerCase();
+    const source = (item.source || '').toLowerCase();
     for (const [key, name] of Object.entries(sourceNames)) {
-      if (url.includes(key)) return name;
+      if (url.includes(key) || source.includes(key)) return name;
     }
     return 'IA';
   }
 
-  function getSourceKey(sourceUrl) {
-    if (!sourceUrl) return 'other';
-    const url = sourceUrl.toLowerCase();
+  function getSourceKey(item) {
+    const url = (item.url || '').toLowerCase();
+    const source = (item.source || '').toLowerCase();
     for (const key of Object.keys(sourceNames)) {
-      if (url.includes(key)) return key;
+      if (url.includes(key) || source.includes(key)) return key;
     }
     return 'other';
   }
@@ -76,11 +76,66 @@
     return `${Math.floor(diff/86400)}d`;
   }
 
+  // Store current list for the modal
+  window.currentNewsList = [];
+
+  // Create Modal once
+  if (!document.getElementById('newsModal')) {
+    const modalHtml = `
+      <div id="newsModal" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+          <button class="modal-close" onclick="closeModal(event)">✕</button>
+          <img id="modalImage" class="modal-image" src="" alt="">
+          <div class="modal-body">
+            <div class="card-meta" style="margin-bottom: 12px;">
+              <span id="modalSource" class="source-badge"></span>
+              <span id="modalTime" class="card-time"></span>
+            </div>
+            <h2 id="modalTitle" class="modal-title"></h2>
+            <div id="modalSummary" class="modal-summary-text"></div>
+            <a id="modalLink" class="modal-btn" href="#" target="_blank" rel="noopener noreferrer">
+              Leer artículo original
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </a>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+  }
+
+  window.openModal = function(index) {
+    const item = window.currentNewsList[index];
+    if (!item) return;
+    
+    document.getElementById('modalImage').src = item.image_url && item.image_url !== 'null' ? item.image_url : `https://picsum.photos/seed/${encodeURIComponent(item.title)}/600/300`;
+    document.getElementById('modalSource').textContent = getSourceName(item);
+    document.getElementById('modalTime').textContent = timeAgo(item.published_at);
+    document.getElementById('modalTitle').textContent = item.title;
+    document.getElementById('modalSummary').textContent = item.summary || 'Sin resumen disponible.';
+    document.getElementById('modalLink').href = item.url;
+    
+    document.getElementById('newsModal').classList.add('visible');
+    document.body.style.overflow = 'hidden'; // Prevent background scrolling
+  }
+
+  window.closeModal = function(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    document.getElementById('newsModal').classList.remove('visible');
+    document.body.style.overflow = '';
+  }
+
   function renderCards(news) {
     const list = document.getElementById('newsList');
 
     // Filter out read articles
     const unread = news.filter(item => !isRead(item.url));
+    window.currentNewsList = unread; // Save for modal
 
     if (!unread.length) {
       list.innerHTML = `
@@ -97,28 +152,22 @@
 
     list.innerHTML = unread.map((item, i) => {
       const isFeatured = i === 0 && activeFilter === 'all';
-      const sourceName = getSourceName(item.source);
+      const sourceName = getSourceName(item);
       const time = timeAgo(item.published_at);
-      const hasImage = item.image_url && item.image_url !== 'null';
+      const imageUrl = item.image_url && item.image_url !== 'null' ? item.image_url : `https://picsum.photos/seed/${encodeURIComponent(item.title)}/600/300`;
 
       return `
-        <div class="card${isFeatured ? ' featured' : ''}" style="animation-delay: ${i * 40}ms" data-url="${item.url}">
+        <div class="card${isFeatured ? ' featured' : ''}" style="animation-delay: ${i * 40}ms" data-url="${item.url}" onclick="openModal(${i})">
           <button class="btn-read" onclick="handleRead(event, '${encodeURIComponent(item.url)}')" title="Marcar como leída">✓</button>
-          ${hasImage
-            ? `<a href="${item.url}" target="_blank" rel="noopener noreferrer"><img class="card-image" src="${item.image_url}" alt="" loading="lazy" onerror="this.style.display='none'"></a>`
-            : isFeatured ? `<a href="${item.url}" target="_blank" rel="noopener noreferrer"><div class="card-image-placeholder">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1">
-                  <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
-                </svg>
-              </div></a>` : ''}
-          <a class="card-body" href="${item.url}" target="_blank" rel="noopener noreferrer">
+          <img class="card-image" src="${imageUrl}" alt="" loading="lazy" onerror="this.style.display='none'">
+          <div class="card-body">
             <div class="card-meta">
               <span class="source-badge">${sourceName}</span>
               <span class="card-time">${time}</span>
             </div>
             <div class="card-title">${item.title}</div>
             ${item.summary ? `<div class="card-summary">${item.summary}</div>` : ''}
-          </a>
+          </div>
         </div>`;
     }).join('');
   }
@@ -152,7 +201,7 @@
     const resolved = resolveFilter(filter);
     const filtered = filter === 'all'
       ? allNews
-      : allNews.filter(n => getSourceKey(n.source) === resolved);
+      : allNews.filter(n => getSourceKey(n) === resolved);
 
     const unread = filtered.filter(item => !isRead(item.url));
     document.getElementById('statusCount').textContent =
