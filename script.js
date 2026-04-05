@@ -160,8 +160,18 @@
       window.rateOffset = 0.25;
       if (btnText) btnText.textContent = "Velocidad: Rápida";
     } else {
-      window.rateOffset = 0.6;
+      window.rateOffset = 0.55;
       if (btnText) btnText.textContent = "Velocidad: Muy Rápida";
+    }
+    
+    // Si está hablando en el resumen del modal en este momento, reiniciarlo para aplicar la velocidad
+    if (window.speechSynthesis.speaking && !window.isPodcastMode && window.isSpeaking) {
+        window.speechSynthesis.cancel();
+        // Esperamos un momento a que el cancel surta efecto antes de reiniciar
+        setTimeout(() => {
+            window.isSpeaking = false;
+            window.toggleTTS();
+        }, 300);
     }
   };
 
