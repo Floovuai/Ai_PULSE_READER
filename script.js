@@ -6,22 +6,32 @@
   const READ_KEY    = 'ainews_read';   // IDs de artículos leídos
   // ──────────────────────────────────────────────────────────
   
-  // Helper centralizado para voces Neurales/Pro
+  // Helper centralizado para voces Neurales/Pro - Prioridad Argentina
   function getNeuralVoices() {
     const voices = window.speechSynthesis.getVoices();
     if (!voices || voices.length === 0) return { host1: null, host2: null };
     
-    // Prioridad 1: Voces Neurales/Online (Google, Microsoft)
-    let h1 = voices.find(v => v.lang.startsWith('es') && (v.name.includes('Neural') || v.name.includes('Online') || v.name.includes('Google')));
-    if (!h1) h1 = voices.find(v => v.lang.startsWith('es') && (v.name.includes('Natural') || v.name.includes('Premium')));
-    if (!h1) h1 = voices.find(v => v.lang.includes('es-AR') || v.lang.includes('es-ES'));
+    // Prioridad 1: Argentina Neural/Pro (Google, Microsoft)
+    let h1 = voices.find(v => v.lang.includes('es-AR') && (v.name.includes('Neural') || v.name.includes('Online') || v.name.includes('Google') || v.name.includes('Natural')));
+    if (!h1) h1 = voices.find(v => v.lang.includes('es-AR'));
+    if (!h1) h1 = voices.find(v => (v.lang.startsWith('es')) && (v.name.includes('Neural') || v.name.includes('Online') || v.name.includes('Google')));
 
-    // Host 2: Preferiblemente una voz distinta del mismo catálogo pro
-    let h2 = voices.find(v => v !== h1 && v.lang.startsWith('es') && (v.name.includes('Neural') || v.name.includes('Online')));
-    if (!h2) h2 = voices.find(v => v !== h1 && v.lang.startsWith('es') && (v.name.includes('Natural')));
+    // Host 2: Preferiblemente una voz distinta de Argentina
+    let h2 = voices.find(v => v !== h1 && v.lang.includes('es-AR') && (v.name.includes('Neural') || v.name.includes('Online')));
+    if (!h2) h2 = voices.find(v => v !== h1 && v.lang.includes('es-AR'));
     if (!h2) h2 = h1;
 
     return { host1: h1, host2: h2 };
+  }
+
+  // Atenuación inteligente de música
+  function attenuateMusic(isDucking) {
+    const bgMusic = document.getElementById('bgMusic');
+    if (!bgMusic) return;
+    
+    // Si estamos en modo podcast o lectura, bajamos a un nivel ambiente
+    const targetVolume = isDucking ? 0.015 : 0.08;
+    bgMusic.volume = targetVolume;
   }
 
   let allNews = [];
@@ -371,16 +381,20 @@
     const textToRead = randomIntro + title + ". ... " + summary;
 
     const utterance = new SpeechSynthesisUtterance(textToRead);
-    utterance.lang = 'es-ES';
-    utterance.rate = 1.0 + (window.rateOffset || 0); 
+    utterance.lang = 'es-AR';
+    utterance.rate = 0.95 + (window.rateOffset || 0); // Un poco más humano para es-AR
+    utterance.pitch = 1.0; 
     
     const { host1 } = getNeuralVoices();
     if (host1) utterance.voice = host1;
     
+    utterance.onstart = () => attenuateMusic(true);
     utterance.onend = function() {
       window.isSpeaking = false;
+      attenuateMusic(false);
       resetTTSButton();
     };
+    utterance.onerror = () => attenuateMusic(false);
 
     window.speechSynthesis.speak(utterance);
     window.isSpeaking = true;
@@ -423,39 +437,38 @@
       text1 = introsH1[Math.floor(Math.random() * introsH1.length)] + item.title;
     }
     
-    const u1 = new SpeechSynthesisUtterance(text1);
+    const u1 = new SpeechSynthesisUtterance(text1 + "...");
     if (host1) u1.voice = host1;
-    u1.rate = 1.0 + (window.rateOffset || 0);
-    u1.pitch = 1.04;
+    u1.rate = 0.95 + (window.rateOffset || 0);
+    u1.pitch = 1.02; // Tono ligeramente más alto para el host 1
     utterances.push(u1);
     
     // --- DIÁLOGO HOST 2 (Reacción & Resumen) ---
     if (item.summary) {
       const reactionsH2 = [
-        "¡Uf, eso suena impactante! Según entiendo, ",
-        "Es un tema clave. Lo que se comenta es que ",
-        "Vaya, no lo sabía. El resumen es básicamente que ",
+        "¡Uf, eso suena impactante! ... Según entiendo, ",
+        "Es un tema clave. ... Lo que se comenta es que ",
+        "Vaya, no lo sabía. ... El resumen es básicamente que ",
         "Claro, y lo más importante es que ",
-        "¡Interesante! Mira, para los que nos escuchan, el punto central es que "
+        "¡Interesante! ... Mira, para los que nos escuchan, el punto central es que "
       ];
       const text2 = reactionsH2[Math.floor(Math.random() * reactionsH2.length)] + item.summary;
       
       const u2 = new SpeechSynthesisUtterance(text2);
       if (host2) u2.voice = host2;
-      u2.rate = 1.05 + (window.rateOffset || 0);
+      u2.rate = 0.98 + (window.rateOffset || 0);
       // Si es la misma voz que H1, cambiar pitch para diferenciar
-      u2.pitch = (host1 === host2) ? 0.85 : 1.0; 
+      u2.pitch = (host1 === host2) ? 0.88 : 0.95; 
       utterances.push(u2);
     }
     
     function speakSequentially() {
       if (utterances.length === 0) {
-        // Al terminar un ítem, lo marcamos como leído y actualizamos UI
+        attenuateMusic(false);
         markAsRead(item.url);
         applyFilter(activeFilter);
         
         window.podcastIndex++;
-        // Pequeña pausa entre noticias antes de la siguiente
         setTimeout(() => {
           if (window.isPodcastMode) playNextPodcastItem();
         }, 1500);
@@ -463,12 +476,14 @@
       }
       
       const u = utterances.shift();
+      u.onstart = () => attenuateMusic(true);
       u.onend = () => {
         if (window.isPodcastMode) speakSequentially();
       };
       u.onerror = (e) => {
         console.error("Audio playback error:", e);
-        if (window.isPodcastMode) speakSequentially(); // Force continue even on error
+        attenuateMusic(false);
+        if (window.isPodcastMode) speakSequentially();
       };
       window.speechSynthesis.speak(u);
     }
