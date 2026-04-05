@@ -148,24 +148,46 @@
   }
 
   window.bgMusicEnabled = true;
+  window.currentTrackIndex = 0;
+  window.lofiPlaylist = [
+    'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=lofi-study-112191.mp3',
+    'https://cdn.pixabay.com/download/audio/2022/03/15/audio_73149be116.mp3?filename=empty-mind-11897.mp3',
+    'https://cdn.pixabay.com/download/audio/2024/02/07/audio_7f53a47833.mp3?filename=lofi-chill-medium-187515.mp3'
+  ];
   
   window.toggleMusic = function() {
-    window.bgMusicEnabled = !window.bgMusicEnabled;
     const btnText = document.getElementById('musicToggleText');
     const bgMusic = document.getElementById('bgMusic');
     
+    window.bgMusicEnabled = !window.bgMusicEnabled;
+    
     if (window.bgMusicEnabled) {
-      if (btnText) btnText.textContent = "Música: On";
-      // Si ya hay alguien hablando, iniciar música inmediatamente
-      if (window.isSpeaking || window.isPodcastMode) {
-        if (bgMusic) {
-          bgMusic.volume = 0.08;
-          bgMusic.play().catch(e => console.log('Audio play error:', e));
-        }
+      if (btnText) btnText.textContent = "Mini-Rockola: On";
+      if (bgMusic) {
+        bgMusic.volume = 0.08;
+        // Intentar reproducir inmediatamente al activar
+        bgMusic.play().catch(e => {
+            console.log('Audio play blocked/error:', e);
+            // Si falla, lo activamos para el próximo evento de voz
+        });
       }
     } else {
-      if (btnText) btnText.textContent = "Música: Off";
+      if (btnText) btnText.textContent = "Mini-Rockola: Off";
       if (bgMusic) bgMusic.pause();
+    }
+  };
+
+  window.nextTrack = function() {
+    const bgMusic = document.getElementById('bgMusic');
+    if (!bgMusic) return;
+
+    window.currentTrackIndex = (window.currentTrackIndex + 1) % window.lofiPlaylist.length;
+    bgMusic.src = window.lofiPlaylist[window.currentTrackIndex];
+    bgMusic.load();
+    
+    if (window.bgMusicEnabled) {
+      bgMusic.volume = 0.08;
+      bgMusic.play().catch(e => console.log('Next track error:', e));
     }
   };
 
