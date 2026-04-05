@@ -1,12 +1,30 @@
-﻿  // ─── CONFIG ───────────────────────────────────────────────
+  // ─── CONFIG ───────────────────────────────────────────────
   const WEBHOOK_URL = 'https://automatizaciones-vs1-n8n.h5jpeh.easypanel.host/webhook/ai-news'; // Reemplazar
   const API_KEY     = 'Hangar89*';     // Igual que en n8n
   const CACHE_KEY   = 'ainews_cache';
   const CACHE_TTL   = 15 * 60 * 1000; // 15 min
+  const READ_KEY    = 'ainews_read';   // IDs de artículos leídos
   // ──────────────────────────────────────────────────────────
 
   let allNews = [];
   let activeFilter = 'all';
+
+  // Read articles management
+  function getReadIds() {
+    try { return JSON.parse(localStorage.getItem(READ_KEY) || '[]'); } catch(e) { return []; }
+  }
+
+  function markAsRead(articleUrl) {
+    const readIds = getReadIds();
+    if (!readIds.includes(articleUrl)) {
+      readIds.push(articleUrl);
+      localStorage.setItem(READ_KEY, JSON.stringify(readIds));
+    }
+  }
+
+  function isRead(articleUrl) {
+    return getReadIds().includes(articleUrl);
+  }
 
   // Source name map
   const sourceNames = {
@@ -60,41 +78,73 @@
 
   function renderCards(news) {
     const list = document.getElementById('newsList');
-    if (!news.length) {
+
+    // Filter out read articles
+    const unread = news.filter(item => !isRead(item.url));
+
+    if (!unread.length) {
       list.innerHTML = `
         <div class="empty-state">
           <div class="pulse-dot"></div>
-          <div class="error-title">Sin noticias aún</div>
-          <div class="error-msg">El workflow de n8n todavía no ha<br>recopilado artículos. Vuelve en 2h.</div>
+          <div class="error-title">${news.length ? 'Todo leído ✓' : 'Sin noticias aún'}</div>
+          <div class="error-msg">${news.length
+            ? 'Has marcado todas las noticias como leídas.<br>Nuevas noticias llegarán cada 30 min.'
+            : 'El workflow de n8n todavía no ha<br>recopilado artículos. Vuelve pronto.'
+          }</div>
         </div>`;
       return;
     }
 
-    list.innerHTML = news.map((item, i) => {
+    list.innerHTML = unread.map((item, i) => {
       const isFeatured = i === 0 && activeFilter === 'all';
       const sourceName = getSourceName(item.source);
       const time = timeAgo(item.published_at);
       const hasImage = item.image_url && item.image_url !== 'null';
 
       return `
-        <a class="card${isFeatured ? ' featured' : ''}" href="${item.url}" target="_blank" rel="noopener noreferrer" style="animation-delay: ${i * 40}ms">
+        <div class="card${isFeatured ? ' featured' : ''}" style="animation-delay: ${i * 40}ms" data-url="${item.url}">
+          <button class="btn-read" onclick="handleRead(event, '${encodeURIComponent(item.url)}')" title="Marcar como leída">✓</button>
           ${hasImage
-            ? `<img class="card-image" src="${item.image_url}" alt="" loading="lazy" onerror="this.style.display='none'">`
-            : isFeatured ? `<div class="card-image-placeholder">
+            ? `<a href="${item.url}" target="_blank" rel="noopener noreferrer"><img class="card-image" src="${item.image_url}" alt="" loading="lazy" onerror="this.style.display='none'"></a>`
+            : isFeatured ? `<a href="${item.url}" target="_blank" rel="noopener noreferrer"><div class="card-image-placeholder">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1">
                   <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
                 </svg>
-              </div>` : ''}
-          <div class="card-body">
+              </div></a>` : ''}
+          <a class="card-body" href="${item.url}" target="_blank" rel="noopener noreferrer">
             <div class="card-meta">
               <span class="source-badge">${sourceName}</span>
               <span class="card-time">${time}</span>
             </div>
             <div class="card-title">${item.title}</div>
             ${item.summary ? `<div class="card-summary">${item.summary}</div>` : ''}
-          </div>
-        </a>`;
+          </a>
+        </div>`;
     }).join('');
+  }
+
+  // Handle read button click
+  function handleRead(event, encodedUrl) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const url = decodeURIComponent(encodedUrl);
+    const btn = event.currentTarget;
+    const card = btn.closest('.card');
+
+    // Animate button
+    btn.classList.add('done');
+
+    // Save read state
+    markAsRead(url);
+
+    // Fade out card then re-render
+    setTimeout(() => {
+      card.classList.add('read-fade');
+      setTimeout(() => {
+        applyFilter(activeFilter);
+      }, 400);
+    }, 300);
   }
 
   function applyFilter(filter) {
@@ -103,9 +153,10 @@
     const filtered = filter === 'all'
       ? allNews
       : allNews.filter(n => getSourceKey(n.source) === resolved);
-    
+
+    const unread = filtered.filter(item => !isRead(item.url));
     document.getElementById('statusCount').textContent =
-      `${filtered.length} noticia${filtered.length !== 1 ? 's' : ''}`;
+      `${unread.length} noticia${unread.length !== 1 ? 's' : ''}`;
     renderCards(filtered);
   }
 
@@ -162,7 +213,7 @@
 
     } catch (err) {
       const list = document.getElementById('newsList');
-      
+
       // Show cached data if available, even if stale
       if (allNews.length) {
         document.getElementById('lastUpdate').textContent = 'sin conexión';
@@ -183,7 +234,7 @@
   // Init
   loadNews();
 
-  // Auto-refresh cada 30 min si la app está en foco
+  // Auto-refresh when tab gets focus
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) loadNews();
   });
