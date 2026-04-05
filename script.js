@@ -212,9 +212,15 @@
   function applyFilter(filter) {
     activeFilter = filter;
     const resolved = resolveFilter(filter);
-    const filtered = filter === 'all'
-      ? allNews
-      : allNews.filter(n => getSourceKey(n) === resolved);
+    
+    let filtered;
+    if (filter === 'all') {
+      filtered = allNews;
+    } else if (filter === 'tendencias') {
+      filtered = allNews.filter(n => (n.category || '').toLowerCase() === 'tendencias');
+    } else {
+      filtered = allNews.filter(n => getSourceKey(n) === resolved);
+    }
 
     const unread = filtered.filter(item => !isRead(item.url));
     document.getElementById('statusCount').textContent =
