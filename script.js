@@ -162,7 +162,7 @@
 
     const title = document.getElementById('modalTitle').textContent;
     const summary = document.getElementById('modalSummary').textContent;
-    const textToRead = title + ". " + summary;
+    const textToRead = "Te cuento: " + title + ". En resumen, " + summary;
 
     const utterance = new SpeechSynthesisUtterance(textToRead);
     utterance.lang = 'es-AR'; // Spanish (Argentina)
@@ -196,6 +196,109 @@
     
     document.getElementById('ttsText').textContent = 'Detener Audio';
     document.getElementById('ttsIcon').textContent = '⏹️';
+  };
+
+  window.isPodcastMode = false;
+  window.podcastIndex = 0;
+  window.podcastNewsList = [];
+
+  window.togglePodcast = function() {
+    if (!('speechSynthesis' in window)) {
+      alert("Tu navegador no soporta lectura por voz.");
+      return;
+    }
+    
+    const btn = document.getElementById('podcastBtn');
+    const textSpan = document.getElementById('podcastBtnText');
+    
+    if (window.isPodcastMode) {
+      // Stop podcast
+      window.isPodcastMode = false;
+      window.speechSynthesis.cancel();
+      if(btn) {
+        btn.style.background = 'rgba(255, 255, 255, 0.1)';
+        btn.style.color = 'var(--accent)';
+      }
+      if(textSpan) textSpan.textContent = "Modo Podcast";
+      return;
+    }
+    
+    // Start podcast
+    window.isPodcastMode = true;
+    window.podcastIndex = 0;
+    
+    const listToRead = window.currentNewsList || [];
+    if (listToRead.length === 0) {
+      alert("No hay noticias no leídas para el podcast.");
+      window.isPodcastMode = false;
+      return;
+    }
+    
+    window.podcastNewsList = listToRead;
+    
+    if(btn) {
+      btn.style.background = 'var(--accent)';
+      btn.style.color = 'white';
+    }
+    if(textSpan) textSpan.textContent = "Detener Podcast";
+    
+    playNextPodcastItem();
+  };
+
+  window.playNextPodcastItem = function() {
+    if (!window.isPodcastMode || window.podcastIndex >= window.podcastNewsList.length) {
+      window.isPodcastMode = false;
+      const btn = document.getElementById('podcastBtn');
+      const textSpan = document.getElementById('podcastBtnText');
+      if(btn) {
+        btn.style.background = 'rgba(255, 255, 255, 0.1)';
+        btn.style.color = 'var(--accent)';
+      }
+      if(textSpan) textSpan.textContent = "Modo Podcast";
+      return;
+    }
+    
+    const item = window.podcastNewsList[window.podcastIndex];
+    
+    let textToRead = "";
+    if (window.podcastIndex === 0) {
+      textToRead += "Bienvenidos al resumen de inteligencia artificial. Para empezar, te cuento: ";
+    } else if (window.podcastIndex === window.podcastNewsList.length - 1) {
+      textToRead += "Y por último, te comento que: ";
+    } else {
+      const transiciones = ["Además, te cuento que: ", "Por otro lado, ", "También es importante saber que: ", "Siguiendo con más novedades, ", "Otra noticia destacada es: "];
+      textToRead += transiciones[window.podcastIndex % transiciones.length];
+    }
+    
+    textToRead += item.title + ". " + (item.summary ? ("En resumen, " + item.summary) : "");
+    
+    const utterance = new SpeechSynthesisUtterance(textToRead);
+    utterance.lang = 'es-AR';
+    utterance.rate = 0.95;
+    utterance.pitch = 1.05;
+    
+    const voices = window.speechSynthesis.getVoices();
+    if (voices && voices.length > 0) {
+      let bestVoice = voices.find(v => v.lang.includes('es-AR') && (v.name.includes('Natural') || v.name.includes('Online') || v.name.includes('Network')));
+      if (!bestVoice) bestVoice = voices.find(v => v.lang.includes('es-AR'));
+      if (!bestVoice) bestVoice = voices.find(v => v.lang.startsWith('es') && (v.name.includes('Google') || v.name.includes('Premium') || v.name.includes('Natural')));
+      if (bestVoice) {
+        utterance.voice = bestVoice;
+      }
+    }
+    
+    utterance.onend = function() {
+      if (window.isPodcastMode) {
+        window.podcastIndex++;
+        setTimeout(() => {
+          if (window.isPodcastMode) {
+            playNextPodcastItem();
+          }
+        }, 1000);
+      }
+    };
+    
+    window.speechSynthesis.speak(utterance);
   };
 
   window.closeModal = function(event) {
@@ -307,7 +410,22 @@
   // Filter pills
   document.querySelectorAll('.filter-pill').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
+      if (btn.id === 'podcastBtn') return;
+      
+      // Stop podcast if running
+      if (window.isPodcastMode && 'speechSynthesis' in window) {
+        window.isPodcastMode = false;
+        window.speechSynthesis.cancel();
+        const pBtn = document.getElementById('podcastBtn');
+        const pText = document.getElementById('podcastBtnText');
+        if (pBtn) {
+          pBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+          pBtn.style.color = 'var(--accent)';
+        }
+        if (pText) pText.textContent = "Modo Podcast";
+      }
+
+      document.querySelectorAll('.filter-pill:not(#podcastBtn)').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       applyFilter(btn.dataset.filter);
     });
