@@ -103,12 +103,6 @@
     }
   }
 
-  // Limpiar todo manualmente (botón reset)
-  window.clearAllRead = function() {
-    if (!confirm('¿Borrar el historial de noticias leídas?\nTodas las noticias volverán a aparecer.')) return;
-    localStorage.removeItem(READ_KEY);
-    applyFilter(activeFilter);
-  };
 
   // Ejecutar limpieza al cargar
   cleanupReadArticles();
