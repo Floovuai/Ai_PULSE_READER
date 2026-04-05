@@ -56,7 +56,7 @@
 
   // Source name map
   const sourceNames = {
-    simonwillison: 'Simon Willison',
+    xataka: 'Xataka',
     anthropic: 'Anthropic',
     langchain: 'LangChain',
     openai: 'OpenAI',
