@@ -165,7 +165,7 @@
     const textToRead = title + ". " + summary;
 
     const utterance = new SpeechSynthesisUtterance(textToRead);
-    utterance.lang = 'es-ES'; // Spanish
+    utterance.lang = 'es-AR'; // Spanish (Argentina)
     utterance.rate = 1.05; // Slightly faster for dynamics
     
     utterance.onend = function() {
