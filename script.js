@@ -147,6 +147,28 @@
     }
   }
 
+  window.bgMusicEnabled = true;
+  
+  window.toggleMusic = function() {
+    window.bgMusicEnabled = !window.bgMusicEnabled;
+    const btnText = document.getElementById('musicToggleText');
+    const bgMusic = document.getElementById('bgMusic');
+    
+    if (window.bgMusicEnabled) {
+      if (btnText) btnText.textContent = "Música: On";
+      // Si ya hay alguien hablando, iniciar música inmediatamente
+      if (window.isSpeaking || window.isPodcastMode) {
+        if (bgMusic) {
+          bgMusic.volume = 0.08;
+          bgMusic.play().catch(e => console.log('Audio play error:', e));
+        }
+      }
+    } else {
+      if (btnText) btnText.textContent = "Música: Off";
+      if (bgMusic) bgMusic.pause();
+    }
+  };
+
   window.rateOffset = 0;
   window.rateLevel = 0; // 0: Normal, 1: Rápida, 2: Muy Rápida
   
@@ -228,7 +250,7 @@
     };
 
     const bgMusic = document.getElementById('bgMusic');
-    if (bgMusic) {
+    if (bgMusic && window.bgMusicEnabled) {
         bgMusic.volume = 0.08;
         bgMusic.play().catch(e => console.log('Audio play error:', e));
     }
@@ -287,7 +309,7 @@
     if(textSpan) textSpan.textContent = "Detener Podcast";
     
     const bgMusic = document.getElementById('bgMusic');
-    if (bgMusic) {
+    if (bgMusic && window.bgMusicEnabled) {
         bgMusic.volume = 0.08;
         bgMusic.play().catch(e => console.log('Audio play error:', e));
     }
