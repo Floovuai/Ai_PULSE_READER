@@ -8,8 +8,10 @@
 
   // ─── CATEGORY MAP (agrupa fuentes de n8n por categoría) ──
   const CATEGORY_MAP = {
-    'Inteligencia Artificial': ['openai', 'anthropic', 'langchain', 'huggingface'],
-    'Tecnología': ['xataka', 'techcrunch', 'venturebeat', 'technologyreview'],
+    'Inteligencia Artificial': ['openai', 'anthropic', 'langchain', 'huggingface', 'googleai', 'deepmind'],
+    'Tecnología': ['xataka', 'techcrunch', 'venturebeat', 'technologyreview', 'verge', 'arstechnica', 'wired'],
+    'Ciencia': ['nature', 'sciencedaily'],
+    'Negocios': ['crunchbase'],
     'Comunidad': ['reddit']
   };
 
@@ -119,6 +121,14 @@
     technologyreview: 'MIT Tech Review',
     huggingface: 'HuggingFace',
     reddit: 'Reddit',
+    verge: 'The Verge',
+    arstechnica: 'Ars Technica',
+    wired: 'Wired',
+    googleai: 'Google AI',
+    deepmind: 'DeepMind',
+    nature: 'Nature',
+    sciencedaily: 'Science Daily',
+    crunchbase: 'Crunchbase',
   };
 
   // Alias map for MIT Tech Review filter pill
