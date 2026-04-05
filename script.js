@@ -809,9 +809,11 @@
   // ─── Utility Functions for Header Actions ─────────────────
 
   window.toggleFontSize = function(size) {
-    // Remove all font classes
+    const scales = { small: 0.9, medium: 1, large: 1.1 };
+    // Apply scale directly to root so rem units pick it up
+    document.documentElement.style.setProperty('--scale', scales[size]);
+    // Keep body class for backward compat
     document.body.classList.remove('font-small', 'font-medium', 'font-large');
-    // Add selected class
     document.body.classList.add(`font-${size}`);
     // Update button states
     document.querySelectorAll('.font-btn').forEach(btn => {
