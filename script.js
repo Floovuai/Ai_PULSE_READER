@@ -84,6 +84,7 @@
     const modalHtml = `
       <div id="newsModal" class="modal-overlay" onclick="closeModal(event)">
         <div class="modal-content" onclick="event.stopPropagation()">
+          <div class="modal-grabber"></div>
           <button class="modal-close" onclick="closeModal(event)">✕</button>
           <img id="modalImage" class="modal-image" src="" alt="">
           <div class="modal-body">
@@ -104,10 +105,54 @@
                 </svg>
               </a>
             </div>
+          </div>
         </div>
       </div>
     `;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
+    initSheetGestures();
+  }
+
+  function initSheetGestures() {
+    const modal = document.querySelector('.modal-content');
+    let startY = 0;
+    let currentY = 0;
+    let isDragging = false;
+
+    modal.addEventListener('touchstart', (e) => {
+      // Only allow dragging from grabber or if scrolled to top
+      const modalBody = modal.querySelector('.modal-body');
+      if (modalBody.scrollTop > 0 && !e.target.classList.contains('modal-grabber')) return;
+
+      startY = e.touches[0].clientY;
+      isDragging = true;
+    }, { passive: true });
+
+    modal.addEventListener('touchmove', (e) => {
+      if (!isDragging) return;
+      currentY = e.touches[0].clientY;
+      const diff = currentY - startY;
+
+      if (diff > 0) {
+        modal.classList.add('dragging');
+        modal.style.transform = `translateY(${diff}px)`;
+      }
+    }, { passive: true });
+
+    modal.addEventListener('touchend', (e) => {
+      if (!isDragging) return;
+      isDragging = false;
+      modal.classList.remove('dragging');
+      
+      const diff = currentY - startY;
+      if (diff > 120) { // Threshold to close
+        closeModal();
+      } else {
+        modal.style.transform = ''; // Snap back
+      }
+      startY = 0;
+      currentY = 0;
+    });
   }
 
   window.openModal = function(index) {
@@ -488,7 +533,11 @@
       event.preventDefault();
       event.stopPropagation();
     }
-    document.getElementById('newsModal').classList.remove('visible');
+    const modal = document.getElementById('newsModal');
+    const content = modal.querySelector('.modal-content');
+    
+    modal.classList.remove('visible');
+    content.style.transform = ''; // Reset gesture transform
     document.body.style.overflow = '';
     
     // Stop speaking when user closes modal

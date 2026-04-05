@@ -473,12 +473,12 @@
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; width: 100vw; height: 100dvh;
-  background: rgba(3, 7, 18, 0.85);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   z-index: 999;
   display: flex;
-  align-items: flex-end;
+  align-items: flex-end; /* Mobile Bottom Sheet */
   justify-content: center;
   opacity: 0;
   pointer-events: none;
@@ -492,15 +492,31 @@
   background: var(--surface);
   width: 100%;
   max-width: 600px;
-  max-height: 92dvh;
-  overflow-y: auto;
-  border-radius: 22px 22px 0 0;
+  height: 90dvh; /* iOS Height standard */
+  overflow: hidden; /* Contain body */
+  border-radius: 24px 24px 0 0;
   position: relative;
   transform: translateY(100%);
   transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
   border: 0.5px solid var(--border);
+  border-bottom: none;
+  user-select: none;
+  touch-action: none; /* Important for gesture control */
+}
+
+.modal-content.dragging {
+  transition: none; /* Liquid follow-finger */
+}
+
+.modal-grabber {
+  width: 40px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 99px;
+  margin: 12px auto 8px;
+  flex-shrink: 0;
 }
 @media (min-width: 600px) {
   .modal-content {
@@ -513,6 +529,13 @@
 }
 .modal-overlay.visible .modal-content {
   transform: translateY(0);
+}
+
+.modal-body {
+  flex: 1;
+  overflow-y: auto; /* Scroll only inside body */
+  padding-bottom: 40px;
+  touch-action: pan-y; /* Allow inner scrolling */
 }
 .modal-close {
   position: absolute;
