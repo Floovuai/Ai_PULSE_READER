@@ -93,13 +93,17 @@
             </div>
             <h2 id="modalTitle" class="modal-title"></h2>
             <div id="modalSummary" class="modal-summary-text"></div>
-            <a id="modalLink" class="modal-btn" href="#" target="_blank" rel="noopener noreferrer">
-              Leer artículo original
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line>
-              </svg>
-            </a>
-          </div>
+            <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 24px;">
+              <button id="btnTTS" class="modal-btn" onclick="toggleTTS()" style="background: var(--surface2); color: var(--text); border: 1px solid rgba(255,255,255,0.1);">
+                <span id="ttsIcon">🔊</span> <span id="ttsText">Escuchar Resumen</span>
+              </button>
+              <a id="modalLink" class="modal-btn" href="#" target="_blank" rel="noopener noreferrer">
+                Leer artículo original
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+              </a>
+            </div>
         </div>
       </div>
     `;
@@ -107,6 +111,11 @@
   }
 
   window.openModal = function(index) {
+    // Reset TTS state before opening
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    window.isSpeaking = false;
+    resetTTSButton();
+
     const item = window.currentNewsList[index];
     if (!item) return;
     const seed = encodeURIComponent((item.title || 'IA').substring(0, 40));
@@ -129,6 +138,48 @@
     document.body.style.overflow = 'hidden'; // Prevent background scrolling
   }
 
+  function resetTTSButton() {
+    const btnText = document.getElementById('ttsText');
+    const btnIcon = document.getElementById('ttsIcon');
+    if(btnText && btnIcon) {
+      btnText.textContent = 'Escuchar Resumen';
+      btnIcon.textContent = '🔊';
+    }
+  }
+
+  window.toggleTTS = function() {
+    if (!('speechSynthesis' in window)) {
+      alert("Tu navegador no soporta lectura por voz.");
+      return;
+    }
+    
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+      window.isSpeaking = false;
+      resetTTSButton();
+      return;
+    }
+
+    const title = document.getElementById('modalTitle').textContent;
+    const summary = document.getElementById('modalSummary').textContent;
+    const textToRead = title + ". " + summary;
+
+    const utterance = new SpeechSynthesisUtterance(textToRead);
+    utterance.lang = 'es-ES'; // Spanish
+    utterance.rate = 1.05; // Slightly faster for dynamics
+    
+    utterance.onend = function() {
+      window.isSpeaking = false;
+      resetTTSButton();
+    };
+
+    window.speechSynthesis.speak(utterance);
+    window.isSpeaking = true;
+    
+    document.getElementById('ttsText').textContent = 'Detener Audio';
+    document.getElementById('ttsIcon').textContent = '⏹️';
+  };
+
   window.closeModal = function(event) {
     if (event) {
       event.preventDefault();
@@ -136,6 +187,13 @@
     }
     document.getElementById('newsModal').classList.remove('visible');
     document.body.style.overflow = '';
+    
+    // Stop speaking when user closes modal
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      window.isSpeaking = false;
+      resetTTSButton();
+    }
   }
 
   function renderCards(news) {
