@@ -166,7 +166,25 @@
 
     const utterance = new SpeechSynthesisUtterance(textToRead);
     utterance.lang = 'es-AR'; // Spanish (Argentina)
-    utterance.rate = 1.05; // Slightly faster for dynamics
+    
+    // Configuraciones humanizadas
+    utterance.rate = 0.95;  // Una velocidad un 5% más lenta suena más reflexiva y humana
+    utterance.pitch = 1.05; // Tono ligeramente animado
+    
+    // Intentar seleccionar la voz de mejor calidad (Neural/Online) instalada
+    const voices = window.speechSynthesis.getVoices();
+    if (voices && voices.length > 0) {
+      // 1. Priorizar voz Argentina "Natural" o "Red"
+      let bestVoice = voices.find(v => v.lang.includes('es-AR') && (v.name.includes('Natural') || v.name.includes('Online') || v.name.includes('Network')));
+      // 2. Si no es "Natural", buscar cualquier voz Argentina
+      if (!bestVoice) bestVoice = voices.find(v => v.lang.includes('es-AR'));
+      // 3. Fallback a voz neutra de alta calidad (Google/Siri/Premium)
+      if (!bestVoice) bestVoice = voices.find(v => v.lang.startsWith('es') && (v.name.includes('Google') || v.name.includes('Premium') || v.name.includes('Natural')));
+      
+      if (bestVoice) {
+        utterance.voice = bestVoice;
+      }
+    }
     
     utterance.onend = function() {
       window.isSpeaking = false;
