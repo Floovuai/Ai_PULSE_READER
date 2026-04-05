@@ -147,6 +147,24 @@
     }
   }
 
+  window.rateOffset = 0;
+  window.rateLevel = 0; // 0: Normal, 1: Rápida, 2: Muy Rápida
+  
+  window.toggleRate = function() {
+    window.rateLevel = (window.rateLevel + 1) % 3;
+    const btnText = document.getElementById('rateBtnText');
+    if (window.rateLevel === 0) {
+      window.rateOffset = 0;
+      if (btnText) btnText.textContent = "Velocidad: Normal";
+    } else if (window.rateLevel === 1) {
+      window.rateOffset = 0.25;
+      if (btnText) btnText.textContent = "Velocidad: Rápida";
+    } else {
+      window.rateOffset = 0.6;
+      if (btnText) btnText.textContent = "Velocidad: Muy Rápida";
+    }
+  };
+
   window.toggleTTS = function() {
     if (!('speechSynthesis' in window)) {
       alert("Tu navegador no soporta lectura por voz.");
@@ -156,6 +174,8 @@
     if (window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
       window.isSpeaking = false;
+      const bgMusic = document.getElementById('bgMusic');
+      if (bgMusic) bgMusic.pause();
       resetTTSButton();
       return;
     }
@@ -168,7 +188,7 @@
     utterance.lang = 'es-AR'; // Spanish (Argentina)
     
     // Configuraciones humanizadas
-    utterance.rate = 0.95;  // Una velocidad un 5% más lenta suena más reflexiva y humana
+    utterance.rate = Math.min(2, 0.95 + window.rateOffset);  // Una velocidad un 5% más lenta + ajuste
     utterance.pitch = 1.05; // Tono ligeramente animado
     
     // Intentar seleccionar una voz masculina de mejor calidad
@@ -192,8 +212,16 @@
     
     utterance.onend = function() {
       window.isSpeaking = false;
+      const bgMusic = document.getElementById('bgMusic');
+      if (bgMusic) bgMusic.pause();
       resetTTSButton();
     };
+
+    const bgMusic = document.getElementById('bgMusic');
+    if (bgMusic) {
+        bgMusic.volume = 0.08;
+        bgMusic.play().catch(e => console.log('Audio play error:', e));
+    }
 
     window.speechSynthesis.speak(utterance);
     window.isSpeaking = true;
@@ -219,6 +247,8 @@
       // Stop podcast
       window.isPodcastMode = false;
       window.speechSynthesis.cancel();
+      const bgMusic = document.getElementById('bgMusic');
+      if (bgMusic) bgMusic.pause();
       if(btn) {
         btn.style.background = 'rgba(255, 255, 255, 0.1)';
         btn.style.color = 'var(--accent)';
@@ -245,6 +275,12 @@
       btn.style.color = 'white';
     }
     if(textSpan) textSpan.textContent = "Detener Podcast";
+    
+    const bgMusic = document.getElementById('bgMusic');
+    if (bgMusic) {
+        bgMusic.volume = 0.08;
+        bgMusic.play().catch(e => console.log('Audio play error:', e));
+    }
     
     playNextPodcastItem();
   };
@@ -290,7 +326,7 @@
     
     const u1 = new SpeechSynthesisUtterance(text1);
     u1.lang = 'es-AR';
-    u1.rate = 0.95;
+    u1.rate = Math.min(2, 0.95 + window.rateOffset);
     // Host 1 pitch grave para sonar masculino
     u1.pitch = 0.85;
     if (host1) u1.voice = host1;
@@ -303,8 +339,8 @@
       
       const u2 = new SpeechSynthesisUtterance(text2);
       u2.lang = host2 && host2.lang ? host2.lang : 'es-AR';
-      u2.rate = 0.98;
-      // Host 2: Si es la misma voz usar 1.0 para separarla, sino 0.9. Ambas graves/masculinas.
+      u2.rate = Math.min(2, 0.98 + window.rateOffset);
+      // Host 2: Si es la misma voz usar 1.0 para separarla, sino 0.9. Ambas graves/masculinas
       u2.pitch = (host1 === host2) ? 1.0 : 0.9;
       if (host2) u2.voice = host2;
       utterances.push(u2);

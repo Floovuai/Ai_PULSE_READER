@@ -29,11 +29,18 @@
     </button>
   </div>
   
-  <div class="controls" style="margin: 10px 0; display: flex; justify-content: center; gap: 10px;">
+  <div class="controls" style="margin: 10px 0; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
     <button id="podcastBtn" class="filter-pill" onclick="togglePodcast()" style="background: rgba(255, 255, 255, 0.1); color: var(--accent); border: 1px solid var(--accent); font-weight: bold; padding: 8px 20px; border-radius: 20px; transition: all 0.3s ease; box-shadow: 0 0 10px rgba(100,200,255,0.2);">
       🎙️ <span id="podcastBtnText">Modo Podcast</span>
     </button>
+    <button id="rateBtn" class="filter-pill" onclick="toggleRate()" style="background: rgba(255, 255, 255, 0.1); color: #fff; border: 1px solid rgba(255, 255, 255, 0.2); font-weight: bold; padding: 8px 15px; border-radius: 20px; transition: all 0.3s ease;">
+      ⏩ <span id="rateBtnText">Velocidad: Normal</span>
+    </button>
   </div>
+  
+  <audio id="bgMusic" loop preload="none">
+    <source src="https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=lofi-study-112191.mp3" type="audio/mpeg">
+  </audio>
 
   <div class="filters">
     <button class="filter-pill active" data-filter="all">Todas</button>
