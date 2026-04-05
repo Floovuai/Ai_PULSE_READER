@@ -151,9 +151,13 @@
 
     /* ─── Mobile Header Responsive ───────────────────────── */
     @media (max-width: 430px) {
+      header {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
       .top-bar {
         gap: 8px;
-        padding: 10px 0 12px;
+        padding: 8px 0 6px;
       }
       .logo {
         gap: 8px;
@@ -196,6 +200,21 @@
         height: 30px;
         font-size: 15px;
         border-radius: 10px;
+      }
+      .controls {
+        margin: 4px 0 !important;
+        gap: 6px !important;
+      }
+      .controls .control-pill {
+        padding: 6px 14px !important;
+        font-size: 12px;
+        border-radius: 16px !important;
+      }
+      .category-bar {
+        padding: 6px 0 2px;
+      }
+      .filters {
+        padding: 6px 0 8px;
       }
     }
 
