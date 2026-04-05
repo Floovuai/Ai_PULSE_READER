@@ -188,9 +188,7 @@
     }
 
     try {
-      const res = await fetch(WEBHOOK_URL, {
-        headers: { 'X-API-Key': API_KEY }
-      });
+      const res = await fetch(WEBHOOK_URL + '?apiKey=' + encodeURIComponent(API_KEY));
 
       if (res.status === 401) {
         throw new Error('API Key inválida. Revisa la configuración.');
