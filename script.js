@@ -259,15 +259,16 @@
     if (!item) return;
     window.currentModalIndex = index;
 
-    const seed = encodeURIComponent((item.title || 'IA').substring(0, 40));
-    const fallbackImg = `https://api.dicebear.com/9.x/shapes/svg?seed=${seed}&backgroundColor=18181f`;
-    const picsumImg = `https://picsum.photos/seed/${seed}/600/300`;
     const validSrc = item.image_url && item.image_url !== 'null' && item.image_url.startsWith('http') ? item.image_url : null;
-    const finalImg = validSrc || picsumImg;
     
     const imgEl = document.getElementById('modalImage');
-    imgEl.src = finalImg;
-    imgEl.onerror = () => { imgEl.src = fallbackImg; imgEl.onerror = null; };
+    if (validSrc) {
+      imgEl.src = validSrc;
+      imgEl.style.display = 'block';
+      imgEl.onerror = () => { imgEl.style.display = 'none'; imgEl.onerror = null; };
+    } else {
+      imgEl.style.display = 'none';
+    }
     
     document.getElementById('modalSource').textContent = getSourceName(item);
     document.getElementById('modalTime').textContent = timeAgo(item.published_at);
@@ -587,17 +588,18 @@
       const time = timeAgo(item.published_at);
       const read = isRead(item.url);
       
-      const seed = encodeURIComponent((item.title || 'IA').substring(0, 40));
-      const fallbackImg = `https://api.dicebear.com/9.x/shapes/svg?seed=${seed}&backgroundColor=18181f`;
-      const picsumImg = `https://picsum.photos/seed/${seed}/600/300`;
       const validSrc = item.image_url && item.image_url !== 'null' && item.image_url.startsWith('http') ? item.image_url : null;
-      const imageUrl = validSrc || picsumImg;
+
+      const imageBlock = validSrc
+        ? `<img class="card-image" src="${validSrc}" alt="" loading="lazy" onerror="this.parentElement.querySelector('.card-placeholder')?.classList.remove('hidden'); this.style.display='none'; this.onerror=null;">
+           <div class="card-placeholder hidden"><span>${sourceName}</span></div>`
+        : `<div class="card-placeholder"><span>${sourceName}</span></div>`;
 
       return `
         <div class="card${isFeatured ? ' featured' : ''}${read ? ' read' : ''}" style="animation-delay: ${i * 40}ms" data-url="${item.url}" onclick="openModal(${i})">
 
           <button class="btn-read" onclick="handleRead(event, '${encodeURIComponent(item.url)}')" title="Marcar como leída">✓</button>
-          <img class="card-image" src="${imageUrl}" alt="" loading="lazy" onerror="this.src='${fallbackImg}'; this.onerror=null;">
+          ${imageBlock}
           <div class="card-body">
             <div class="card-meta">
               <span class="source-badge">${sourceName}</span>
