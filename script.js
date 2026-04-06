@@ -616,7 +616,7 @@
   }
 
   // Handle read button click
-  function handleRead(event, encodedUrl) {
+  window.handleRead = function(event, encodedUrl) {
     event.preventDefault();
     event.stopPropagation();
 
@@ -628,7 +628,7 @@
     btn.classList.add('done');
 
     // Save read state (buscar id en allNews por url)
-    const newsItem = (window.allNews || []).find(n => n.url === url);
+    const newsItem = allNews.find(n => n.url === url);
     markAsRead(url, newsItem?.id);
 
     // Fade out card then re-render
