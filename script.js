@@ -70,13 +70,15 @@
     map[articleUrl] = Date.now();
     localStorage.setItem(READ_KEY, JSON.stringify(map));
 
-    // 2. Sincronizar con Google Sheets via n8n (fire-and-forget)
+    // 2. Sincronizar con Google Sheets via n8n (GET para evitar preflight CORS)
     if (articleId) {
-      fetch(MARK_READ_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: articleId, apiKey: API_KEY })
-      }).catch(() => {}); // Silent fail — localStorage es la fuente local
+      const params = new URLSearchParams({ id: articleId, apiKey: API_KEY });
+      fetch(`${MARK_READ_URL}?${params.toString()}`)
+        .then(res => {
+          if (res.ok) console.log('✅ Marcado como leído en Sheet:', articleId);
+          else console.warn('⚠️ Error al marcar como leído:', res.status);
+        })
+        .catch(() => {}); // Silent fail — localStorage es la fuente local
     }
   }
 
