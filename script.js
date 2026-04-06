@@ -1,6 +1,7 @@
   // ─── CONFIG ───────────────────────────────────────────────
-  const WEBHOOK_URL = 'https://automatizaciones-vs1-n8n.h5jpeh.easypanel.host/webhook/ai-news'; // Reemplazar
-  const API_KEY     = 'Hangar89*';     // Igual que en n8n
+  const WEBHOOK_URL     = 'https://automatizaciones-vs1-n8n.h5jpeh.easypanel.host/webhook/ai-news';
+  const MARK_READ_URL   = 'https://automatizaciones-vs1-n8n.h5jpeh.easypanel.host/webhook/mark-read';
+  const API_KEY         = 'Hangar89*';     // Igual que en n8n
   const CACHE_KEY   = 'ainews_cache';
   const CACHE_TTL   = 15 * 60 * 1000; // 15 min
   const READ_KEY    = 'ainews_read';   // IDs de artículos leídos
@@ -63,10 +64,20 @@
     } catch(e) { return {}; }
   }
 
-  function markAsRead(articleUrl) {
+  function markAsRead(articleUrl, articleId) {
+    // 1. Guardar localmente (inmediato, fuente de verdad para la sesión)
     const map = getReadMap();
     map[articleUrl] = Date.now();
     localStorage.setItem(READ_KEY, JSON.stringify(map));
+
+    // 2. Sincronizar con Google Sheets via n8n (fire-and-forget)
+    if (articleId) {
+      fetch(MARK_READ_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: articleId, apiKey: API_KEY })
+      }).catch(() => {}); // Silent fail — localStorage es la fuente local
+    }
   }
 
   function isRead(articleUrl) {
@@ -295,7 +306,7 @@
       delete map[item.url];
       localStorage.setItem(READ_KEY, JSON.stringify(map));
     } else {
-      markAsRead(item.url);
+      markAsRead(item.url, item.id);
     }
 
     // Update button state
@@ -470,7 +481,7 @@
     function speakSequentially() {
       if (utterances.length === 0) {
 
-        markAsRead(item.url);
+        markAsRead(item.url, item.id);
         applyFilter(activeFilter);
         
         window.podcastIndex++;
@@ -616,8 +627,9 @@
     // Animate button
     btn.classList.add('done');
 
-    // Save read state
-    markAsRead(url);
+    // Save read state (buscar id en allNews por url)
+    const newsItem = (window.allNews || []).find(n => n.url === url);
+    markAsRead(url, newsItem?.id);
 
     // Fade out card then re-render
     setTimeout(() => {
@@ -765,10 +777,22 @@
       if (typeof payload === 'string') {
         try { payload = JSON.parse(payload); } catch(e) {}
       }
-      allNews = payload.data || payload || [];
+      let rawNews = payload.data || payload || [];
+
+      // Sincronizar estado "leido" desde el Sheet al localStorage
+      rawNews.forEach(item => {
+        if (item.read && !isRead(item.url)) {
+          const map = getReadMap();
+          map[item.url] = Date.now();
+          localStorage.setItem(READ_KEY, JSON.stringify(map));
+        }
+      });
+
+      // Filtrar artículos ya leídos en el Sheet (desaparecen de la app)
+      allNews = rawNews.filter(item => !item.read);
       allNews.sort((a, b) => new Date(a.published_at) - new Date(b.published_at));
 
-      // Save cache
+      // Guardar cache solo con las no leídas
       localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: allNews }));
 
       applyFilter(activeFilter);
