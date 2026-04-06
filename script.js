@@ -309,22 +309,15 @@
       localStorage.setItem(READ_KEY, JSON.stringify(map));
     } else {
       markAsRead(item.url, item.id);
+      // Invalidar caché para que el próximo refresh traiga datos frescos
+      localStorage.removeItem(CACHE_KEY);
     }
 
-    // Update button state
-    syncReadButton(item.url);
+    // Cerrar el modal después de marcar como leída
+    closeModal();
 
-    // Re-render card list so the read state is reflected
-    renderCards(allNews.filter(n => {
-      const key = getSourceKey(n);
-      const resolved = resolveFilter(activeFilter);
-      if (resolved !== 'all' && key !== resolved) return false;
-      if (activeCategory !== 'Todas') {
-        const catSources = CATEGORY_MAP[activeCategory] || [];
-        if (!catSources.includes(key)) return false;
-      }
-      return true;
-    }));
+    // Re-render la lista sin las leídas
+    applyFilter(activeFilter);
   }
 
   function resetTTSButton() {
@@ -665,7 +658,7 @@
     const unread = filtered.filter(item => !isRead(item.url));
     document.getElementById('statusCount').textContent =
       `${unread.length} noticia${unread.length !== 1 ? 's' : ''}`;
-    renderCards(filtered);
+    renderCards(unread);
   }
 
   // ─── CATEGORY BAR LOGIC ────────────────────────────────────
