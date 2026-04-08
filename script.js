@@ -11,9 +11,11 @@
   const CATEGORY_MAP = {
     'Inteligencia Artificial': ['openai', 'anthropic', 'langchain', 'huggingface', 'googleai', 'deepmind'],
     'Tecnología': ['xataka', 'techcrunch', 'venturebeat', 'technologyreview', 'verge', 'arstechnica', 'wired'],
-    'Ciencia': ['nature', 'sciencedaily'],
-    'Negocios': ['crunchbase'],
-    'Comunidad': ['reddit']
+    'ClaudeAI': ['r_claudeai'],
+    'AnthropicAI': ['r_anthropicai'],
+    'Claude Code': ['r_claudecode'],
+    'n8n': ['r_n8n'],
+    'Antigravity': ['r_antigravity']
   };
 
   let activeCategory = 'Todas';
@@ -133,15 +135,16 @@
     venturebeat: 'VentureBeat',
     technologyreview: 'MIT Tech Review',
     huggingface: 'HuggingFace',
-    reddit: 'Reddit',
     verge: 'The Verge',
     arstechnica: 'Ars Technica',
     wired: 'Wired',
     googleai: 'Google AI',
     deepmind: 'DeepMind',
-    nature: 'Nature',
-    sciencedaily: 'Science Daily',
-    crunchbase: 'Crunchbase',
+    r_claudeai: 'r/ClaudeAI',
+    r_anthropicai: 'r/AnthropicAI',
+    r_claudecode: 'r/ClaudeCode',
+    r_n8n: 'r/n8n',
+    r_antigravity: 'r/Antigravity',
   };
 
   // Alias map for MIT Tech Review filter pill
@@ -149,7 +152,28 @@
     mittech: 'technologyreview',
   };
 
+  // Mapa de subreddits a source keys
+  const subredditMap = {
+    'r/claudeai': 'r_claudeai',
+    'r/anthropicai': 'r_anthropicai',
+    'r/claudecode': 'r_claudecode',
+    'r/n8n': 'r_n8n',
+    'r/antigravity': 'r_antigravity',
+  };
+
+  function detectSubreddit(url) {
+    const lower = (url || '').toLowerCase();
+    for (const [sub, key] of Object.entries(subredditMap)) {
+      if (lower.includes('reddit.com/' + sub)) return key;
+    }
+    return null;
+  }
+
   function getSourceName(item) {
+    // Primero verificar si es un subreddit específico
+    const sub = detectSubreddit(item.url);
+    if (sub) return sourceNames[sub] || 'Reddit';
+
     const url = (item.url || '').toLowerCase();
     const source = (item.source || '').toLowerCase();
     for (const [key, name] of Object.entries(sourceNames)) {
@@ -159,6 +183,10 @@
   }
 
   function getSourceKey(item) {
+    // Primero verificar si es un subreddit específico
+    const sub = detectSubreddit(item.url);
+    if (sub) return sub;
+
     const url = (item.url || '').toLowerCase();
     const source = (item.source || '').toLowerCase();
     for (const key of Object.keys(sourceNames)) {
@@ -260,15 +288,12 @@
     window.currentModalIndex = index;
 
     const validSrc = item.image_url && item.image_url !== 'null' && item.image_url.startsWith('http') ? item.image_url : null;
-    
+    const aiModalImg = `https://image.pollinations.ai/prompt/${encodeURIComponent('minimalist tech illustration about: ' + (item.title || 'AI technology').substring(0, 80))}?width=600&height=300&nologo=true`;
+
     const imgEl = document.getElementById('modalImage');
-    if (validSrc) {
-      imgEl.src = validSrc;
-      imgEl.style.display = 'block';
-      imgEl.onerror = () => { imgEl.style.display = 'none'; imgEl.onerror = null; };
-    } else {
-      imgEl.style.display = 'none';
-    }
+    imgEl.src = validSrc || aiModalImg;
+    imgEl.style.display = 'block';
+    imgEl.onerror = () => { imgEl.style.display = 'none'; imgEl.onerror = null; };
     
     document.getElementById('modalSource').textContent = getSourceName(item);
     document.getElementById('modalTime').textContent = timeAgo(item.published_at);
@@ -589,11 +614,11 @@
       const read = isRead(item.url);
       
       const validSrc = item.image_url && item.image_url !== 'null' && item.image_url.startsWith('http') ? item.image_url : null;
+      const aiImageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent('minimalist tech illustration about: ' + (item.title || 'AI technology').substring(0, 80))}?width=600&height=300&nologo=true`;
 
       const imageBlock = validSrc
-        ? `<img class="card-image" src="${validSrc}" alt="" loading="lazy" onerror="this.parentElement.querySelector('.card-placeholder')?.classList.remove('hidden'); this.style.display='none'; this.onerror=null;">
-           <div class="card-placeholder hidden"><span>${sourceName}</span></div>`
-        : `<div class="card-placeholder"><span>${sourceName}</span></div>`;
+        ? `<img class="card-image" src="${validSrc}" alt="" loading="lazy" onerror="this.src='${aiImageUrl}'; this.onerror=function(){this.parentElement.querySelector('.card-placeholder')?.classList.remove('hidden'); this.style.display='none'; this.onerror=null;};">`
+        : `<img class="card-image" src="${aiImageUrl}" alt="" loading="lazy" onerror="this.parentElement.querySelector('.card-placeholder')?.classList.remove('hidden'); this.style.display='none'; this.onerror=null;">`;
 
       return `
         <div class="card${isFeatured ? ' featured' : ''}${read ? ' read' : ''}" style="animation-delay: ${i * 40}ms" data-url="${item.url}" onclick="openModal(${i})">
@@ -687,8 +712,7 @@
     const container = document.getElementById('sourcePills');
     if (!container) return;
     
-    let pills = '<button class="filter-pill active" data-filter="all">Todas</button>';
-    pills += '<button class="filter-pill" data-filter="tendencias" style="color: var(--accent2); font-weight: 700;">🔥 Tendencias</button>';
+    let pills = '<button class="filter-pill" data-filter="tendencias" style="color: var(--accent2); font-weight: 700;">🔥 Tendencias</button>';
     
     let sourcesToShow = [];
     if (activeCategory === 'Todas') {
@@ -785,8 +809,13 @@
         }
       });
 
-      // Filtrar artículos ya leídos en el Sheet (desaparecen de la app)
-      allNews = rawNews.filter(item => !item.read);
+      // Filtrar: solo fuentes conocidas + no leídos en Sheet
+      const knownSources = new Set(Object.keys(sourceNames));
+      allNews = rawNews.filter(item => {
+        if (item.read) return false; // Leídos en el Sheet
+        const key = getSourceKey(item);
+        return key !== 'other' && knownSources.has(key); // Solo fuentes de IA y Tecnología
+      });
       allNews.sort((a, b) => new Date(a.published_at) - new Date(b.published_at));
 
       // Guardar cache solo con las no leídas
