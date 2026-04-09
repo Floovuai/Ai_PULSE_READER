@@ -11,6 +11,7 @@
   const CATEGORY_MAP = {
     'Inteligencia Artificial': ['openai', 'anthropic', 'langchain', 'huggingface', 'googleai', 'deepmind', 'newsletters'],
     'Tecnología': ['techcrunch', 'venturebeat', 'technologyreview', 'verge', 'arstechnica', 'wired', 'hipertextual'],
+    'n8n': ['n8n'],
   };
 
   let activeCategory = 'Todas';
@@ -136,6 +137,7 @@
     deepmind: 'DeepMind',
     hipertextual: 'Hipertextual',
     newsletters: 'Newsletters',
+    n8n: 'n8n',
   };
 
   // Alias map for MIT Tech Review filter pill
