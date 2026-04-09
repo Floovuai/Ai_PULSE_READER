@@ -9,13 +9,8 @@
 
   // ─── CATEGORY MAP (agrupa fuentes de n8n por categoría) ──
   const CATEGORY_MAP = {
-    'Inteligencia Artificial': ['openai', 'anthropic', 'langchain', 'huggingface', 'googleai', 'deepmind'],
-    'Tecnología': ['xataka', 'techcrunch', 'venturebeat', 'technologyreview', 'verge', 'arstechnica', 'wired'],
-    'ClaudeAI': ['r_claudeai'],
-    'AnthropicAI': ['r_anthropicai'],
-    'Claude Code': ['r_claudecode'],
-    'n8n': ['r_n8n'],
-    'Antigravity': ['r_antigravity']
+    'Inteligencia Artificial': ['openai', 'anthropic', 'langchain', 'huggingface', 'googleai', 'deepmind', 'newsletters'],
+    'Tecnología': ['techcrunch', 'venturebeat', 'technologyreview', 'verge', 'arstechnica', 'wired', 'hipertextual'],
   };
 
   let activeCategory = 'Todas';
@@ -127,7 +122,6 @@
 
   // Source name map
   const sourceNames = {
-    xataka: 'Xataka',
     anthropic: 'Anthropic',
     langchain: 'LangChain',
     openai: 'OpenAI',
@@ -140,11 +134,8 @@
     wired: 'Wired',
     googleai: 'Google AI',
     deepmind: 'DeepMind',
-    r_claudeai: 'r/ClaudeAI',
-    r_anthropicai: 'r/AnthropicAI',
-    r_claudecode: 'r/ClaudeCode',
-    r_n8n: 'r/n8n',
-    r_antigravity: 'r/Antigravity',
+    hipertextual: 'Hipertextual',
+    newsletters: 'Newsletters',
   };
 
   // Alias map for MIT Tech Review filter pill
@@ -152,27 +143,25 @@
     mittech: 'technologyreview',
   };
 
-  // Mapa de subreddits a source keys
-  const subredditMap = {
-    'r/claudeai': 'r_claudeai',
-    'r/anthropicai': 'r_anthropicai',
-    'r/claudecode': 'r_claudecode',
-    'r/n8n': 'r_n8n',
-    'r/antigravity': 'r_antigravity',
-  };
+  // URL patterns for feeds whose URLs don't contain the source key name
+  const urlPatterns = [
+    { pattern: 'blog.google',    key: 'googleai' },
+    { pattern: 'deepmind.google', key: 'deepmind' },
+    { pattern: 'rss.app',        key: 'newsletters' },
+    { pattern: 'hipertextual',   key: 'hipertextual' },
+  ];
 
-  function detectSubreddit(url) {
+  function resolveUrlPattern(url) {
     const lower = (url || '').toLowerCase();
-    for (const [sub, key] of Object.entries(subredditMap)) {
-      if (lower.includes('reddit.com/' + sub)) return key;
+    for (const { pattern, key } of urlPatterns) {
+      if (lower.includes(pattern)) return key;
     }
     return null;
   }
 
   function getSourceName(item) {
-    // Primero verificar si es un subreddit específico
-    const sub = detectSubreddit(item.url);
-    if (sub) return sourceNames[sub] || 'Reddit';
+    const patternKey = resolveUrlPattern(item.url);
+    if (patternKey) return sourceNames[patternKey] || patternKey;
 
     const url = (item.url || '').toLowerCase();
     const source = (item.source || '').toLowerCase();
@@ -183,9 +172,8 @@
   }
 
   function getSourceKey(item) {
-    // Primero verificar si es un subreddit específico
-    const sub = detectSubreddit(item.url);
-    if (sub) return sub;
+    const patternKey = resolveUrlPattern(item.url);
+    if (patternKey) return patternKey;
 
     const url = (item.url || '').toLowerCase();
     const source = (item.source || '').toLowerCase();
@@ -198,6 +186,19 @@
   // Resolve alias for filter matching (e.g. 'mittech' -> 'technologyreview')
   function resolveFilter(filter) {
     return sourceAliases[filter] || filter;
+  }
+
+  // Corrige texto con doble codificación UTF-8 (mojibake)
+  function fixEncoding(str) {
+    if (!str) return str;
+    // Detecta si hay caracteres típicos de doble-encoding UTF-8
+    if (/[\u00C2-\u00C3][\u0080-\u00BF]/.test(str)) {
+      try {
+        const bytes = new Uint8Array([...str].map(c => c.charCodeAt(0)));
+        return new TextDecoder('utf-8').decode(bytes);
+      } catch(e) {}
+    }
+    return str;
   }
 
   function timeAgo(dateStr) {
@@ -794,11 +795,23 @@
 
       if (!res.ok) throw new Error(`Error ${res.status}`);
 
-      let payload = await res.json();
+      // Decodificar con fallback de encoding para caracteres con tilde
+      const buffer = await res.arrayBuffer();
+      let text = new TextDecoder('utf-8').decode(buffer);
+      if (text.includes('\uFFFD')) {
+        text = new TextDecoder('windows-1252').decode(buffer);
+      }
+      let payload = JSON.parse(text);
       if (typeof payload === 'string') {
         try { payload = JSON.parse(payload); } catch(e) {}
       }
       let rawNews = payload.data || payload || [];
+
+      // Corregir encoding de título y resumen
+      rawNews.forEach(item => {
+        item.title = fixEncoding(item.title);
+        item.summary = fixEncoding(item.summary);
+      });
 
       // Sincronizar estado "leido" desde el Sheet al localStorage
       rawNews.forEach(item => {
